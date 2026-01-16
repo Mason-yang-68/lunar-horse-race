@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Year of the Horse - Red Envelope Race</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Oval Track and Festive Styles */
+        .oval-track-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            /* 使用固定寬高比避免不同螢幕拉伸問題 */
+            aspect-ratio: 900 / 550;
+            margin: 20px auto;
+            background-image: url('{{ url_for("static", filename="images/race_background.jpg") }}');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .oval-track {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            overflow: visible;
+        }
+
+        /* Start Line - Right side of track */
+        .start-line {
+            position: absolute;
+            right: -5%;
+            top: 50%;
+            transform: translate(50%, -50%);
+            z-index: 15;
+        }
+
+        /* Finish Line - Left side of track */
+        .finish-line {
+            position: absolute;
+            left: -5%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 15;
+        }
+
+        .start-marker,
+        .finish-marker {
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px #000;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+            white-space: nowrap;
+        }
+
+        .start-marker {
+            background: linear-gradient(135deg, #44ff44 0%, #00aa00 100%);
+        }
+
+        .finish-marker {
+            background: linear-gradient(135deg, #ffaa00 0%, #ff6600 100%);
+        }
+
+        /* Spectators */
+        .spectator {
+            position: absolute;
+            font-size: 24px;
+            animation: spectator-wave 1.5s ease-in-out infinite;
+            z-index: 5;
+            filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+        }
+
+        .spectator:nth-child(odd) {
+            animation-delay: 0.3s;
+        }
+
+        .spectator:nth-child(3n) {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes spectator-wave {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(-5deg);
+            }
+
+            50% {
+                transform: translateY(-5px) rotate(5deg);
+            }
+        }
+
+        .track-player {
+            position: absolute;
+            width: 45px;
+            height: 45px;
+            transform: translate(-50%, -50%);
+            transition: all 0.4s ease-out;
+            z-index: 10;
+        }
+
+        .track-player img {
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(3px 3px 5px rgba(0, 0, 0, 0.7));
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Food boost effect - INTENSE */
+        .track-player.boosted {
+            z-index: 100 !important;
+            /* Bring to front */
+        }
+
+        .track-player.boosted img {
+            transform: scale(1.5) !important;
+            filter: drop-shadow(0 0 10px #00ff00) drop-shadow(0 0 20px #00ff00) brightness(1.5) !important;
+            animation: boost-shake 0.2s infinite;
+        }
+
+        @keyframes boost-shake {
+            0% {
+                transform: scale(1.5) rotate(0deg);
+            }
+
+            25% {
+                transform: scale(1.5) rotate(-5deg);
+            }
+
+            75% {
+                transform: scale(1.5) rotate(5deg);
+            }
+
+            100% {
+                transform: scale(1.5) rotate(0deg);
+            }
+        }
+
+        /* Hardware slow effect - INTENSE */
+        .track-player.slowed {
+            z-index: 100 !important;
+        }
+
+        .track-player.slowed img {
+            transform: scale(0.7) !important;
+            filter: drop-shadow(0 0 10px #ff0000) sepia(100%) hue-rotate(320deg) saturate(500%) !important;
+            opacity: 0.8;
+            animation: slow-vibrate 0.1s infinite;
+        }
+
+        /* Frozen effect - answered wrong */
+        .track-player.frozen {
+            z-index: 100 !important;
+        }
+
+        .track-player.frozen img {
+            filter: drop-shadow(0 0 15px #00BFFF) brightness(1.3) saturate(0.5) !important;
+            animation: frozen-shake 0.1s infinite;
+        }
+
+        .track-player.frozen::after {
+            content: '❄️';
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 30px;
+            animation: pulse-freeze 0.5s infinite;
+        }
+
+        @keyframes frozen-shake {
+
+            0%,
+            100% {
+                transform: scale(1) translate(0, 0);
+            }
+
+            25% {
+                transform: scale(1) translate(-3px, 0);
+            }
+
+            75% {
+                transform: scale(1) translate(3px, 0);
+            }
+        }
+
+        @keyframes pulse-freeze {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: translateX(-50%) scale(1.3);
+            }
+        }
+
+        @keyframes slow-vibrate {
+            0% {
+                transform: scale(0.7) translate(0, 0);
+            }
+
+            25% {
+                transform: scale(0.7) translate(2px, 2px);
+            }
+
+            50% {
+                transform: scale(0.7) translate(-2px, -2px);
+            }
+
+            75% {
+                transform: scale(0.7) translate(2px, -2px);
+            }
+
+            100% {
+                transform: scale(0.7) translate(0, 0);
+            }
+        }
+
+        /* Dodging effect */
+        .track-player.dodging img {
+            filter: drop-shadow(0 0 10px #00f) brightness(1.2);
+            animation: dodge-flash 0.2s ease-in-out;
+        }
+
+        @keyframes dodge-flash {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .track-player-name {
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: gold;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .prize-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(145deg, #8B0000, #5c0000);
+            border: 3px solid gold;
+            border-radius: 15px;
+            padding: 15px 20px;
+            color: gold;
+            z-index: 100;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .prize-display h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #fff;
+            text-align: center;
+        }
+
+        .prize-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 16px;
+        }
+
+        .prize-row .medal {
+            font-size: 20px;
+        }
+
+        .prize-row .amount {
+            font-weight: bold;
+            color: #FFD700;
+        }
+
+        .top3-input-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .top3-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255, 215, 0, 0.1);
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid gold;
+        }
+
+        .top3-input label {
+            font-size: 14px;
+            color: gold;
+            margin-bottom: 5px;
+        }
+
+        .top3-input input {
+            width: 100px;
+            padding: 8px;
+            font-size: 18px;
+            text-align: center;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .festive-greetings {
+            position: absolute;
+            color: gold;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+            pointer-events: none;
+        }
+
+        .greeting-1 {
+            top: 10%;
+            left: 10%;
+            font-size: 18px;
+        }
+
+        .greeting-2 {
+            top: 10%;
+            right: 10%;
+            font-size: 18px;
+        }
+
+        .greeting-3 {
+            bottom: 10%;
+            left: 10%;
+            font-size: 16px;
+        }
+
+        .greeting-4 {
+            bottom: 10%;
+            right: 10%;
+            font-size: 16px;
+        }
+
+        /* Floating Clouds with New Year Greetings - Horse Shape */
+        .cloud {
+            position: absolute;
+            font-size: 22px;
+            font-weight: bold;
+            color: #8B0000;
+            text-shadow: 1px 1px 2px #fff;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(230, 230, 250, 0.9) 100%);
+            padding: 12px 20px 12px 80px;
+            border-radius: 25px 60px 25px 40px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12),
+                inset 0 2px 10px rgba(255, 255, 255, 0.8),
+                inset 0 -3px 10px rgba(200, 200, 220, 0.3);
+            opacity: 0.95;
+            animation: float-cloud 22s linear infinite, cloud-bob 3s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+            white-space: nowrap;
+        }
+
+        /* Large horse silhouette */
+        .cloud::before {
+            content: '🐎';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%) scaleX(-1);
+            font-size: 48px;
+            filter: drop-shadow(3px 3px 4px rgba(139, 0, 0, 0.3));
+        }
+
+        /* Flowing mane/tail effect */
+        .cloud::after {
+            content: '〰️';
+            position: absolute;
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            opacity: 0.7;
+            animation: wave-tail 0.8s ease-in-out infinite alternate;
+        }
+
+        @keyframes cloud-bob {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes wave-tail {
+            0% {
+                transform: translateY(-50%) rotate(-5deg);
+            }
+
+            100% {
+                transform: translateY(-50%) rotate(5deg);
+            }
+        }
+
+        .cloud-1 {
+            top: 3%;
+            left: -250px;
+            animation-delay: 0s;
+            font-size: 26px;
+        }
+
+        .cloud-2 {
+            top: 14%;
+            left: -250px;
+            animation-delay: 7s;
+            font-size: 22px;
+        }
+
+        .cloud-3 {
+            top: 25%;
+            left: -250px;
+            animation-delay: 14s;
+            font-size: 24px;
+        }
+
+        @keyframes float-cloud {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(calc(100vw + 300px));
+            }
+        }
+
+        /* Running Horse Decorations */
+        .running-horse {
+            position: absolute;
+            font-size: 30px;
+            animation: gallop 0.3s steps(2) infinite, run-across 8s linear infinite;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .running-horse-1 {
+            bottom: 5%;
+            animation-delay: 0s;
+        }
+
+        .running-horse-2 {
+            bottom: 8%;
+            animation-delay: 3s;
+            font-size: 25px;
+        }
+
+        @keyframes gallop {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        @keyframes run-across {
+            0% {
+                left: -50px;
+            }
+
+            100% {
+                left: calc(100% + 50px);
+            }
+        }
+
+        /* Enhanced Track Background - uses uploaded race track image */
+        .oval-track-container {
+            background-color: #3d6b35;
+        }
+
+        .oval-track-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.05) 0%, transparent 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .setup-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .qr-section {
+            text-align: center;
+            flex: 0 0 250px;
+        }
+
+        .track-section {
+            flex: 1;
+            min-width: 500px;
+        }
+
+        .player-count-badge {
+            background: gold;
+            color: #8B0000;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin: 10px;
+        }
+
+        /* Item bounce animation */
+        @keyframes item-bounce {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                transform: translate(-50%, -60%) scale(1.1);
+            }
+        }
+
+        /* Effect pulse animation for horse indicators */
+        @keyframes effect-pulse {
+
+            0%,
+            100% {
+                transform: translateX(-50%) scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: translateX(-50%) scale(1.3);
+                opacity: 0.7;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Floating Clouds with New Year Greetings -->
+    <div class="cloud cloud-1">🐴 馬到成功</div>
+    <div class="cloud cloud-2">🧧 萬馬奔騰</div>
+    <div class="cloud cloud-3">🎊 龍馬精神</div>
+
+    <!-- Fixed Prize Display at Top Right -->
+    <div class="prize-display" id="prize-display">
+        <h4>🏆 前三名獎金</h4>
+        <div class="prize-row"><span class="medal">🥇</span> 第1名: <span class="amount" id="display-prize1">$1000</span>
+        </div>
+        <div class="prize-row"><span class="medal">🥈</span> 第2名: <span class="amount" id="display-prize2">$800</span>
+        </div>
+        <div class="prize-row"><span class="medal">🥉</span> 第3名: <span class="amount" id="display-prize3">$600</span>
+        </div>
+    </div>
+
+    <div id="setup-screen">
+        <h1>🧧 金馬迎春 - 新年紅包賽跑 🧧</h1>
+
+        <!-- Top 3 Prize Inputs -->
+        <div class="top3-input-group">
+            <div class="top3-input">
+                <label>🥇 第1名獎金</label>
+                <input type="number" id="prize1" value="1000" onchange="updatePrizeDisplay()">
+            </div>
+            <div class="top3-input">
+                <label>🥈 第2名獎金</label>
+                <input type="number" id="prize2" value="800" onchange="updatePrizeDisplay()">
+            </div>
+            <div class="top3-input">
+                <label>🥉 第3名獎金</label>
+                <input type="number" id="prize3" value="600" onchange="updatePrizeDisplay()">
+            </div>
+        </div>
+
+        <div class="setup-content">
+            <!-- QR Code Section -->
+            <div class="qr-section">
+                <div id="qrcode-container"></div>
+                <h4>掃描加入! <br><span id="join-url" style="font-size:12px;"></span></h4>
+                <div class="player-count-badge">
+                    已加入: <span id="player-count">0</span> 人
+                </div>
+            </div>
+
+            <!-- Oval Track Preview Section -->
+            <div class="track-section">
+                <div class="oval-track-container" id="oval-track-container">
+                    <div class="oval-track" id="oval-track">
+                        <!-- Players will be positioned here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn" onclick="startRace()">開始賽跑 / START RACE 🏁</button>
+    </div>
+
+    <div id="race-screen" style="display: none;">
+        <h1>賽跑進行中... 用力搖手機! 📱💨</h1>
+        <div class="oval-track-container" id="race-oval-container">
+            <div class="oval-track" id="race-oval-track">
+                <!-- Race horses will be positioned here -->
+            </div>
+        </div>
+        <div
+            style="position:fixed;bottom:5px;right:10px;font-size:10px;color:rgba(255,255,255,0.3);pointer-events:none;">
+            designed by mason_yang</div>
+    </div>
+
+    <div id="results-screen" style="display: none;">
+        <h1>🏆 比賽結果 🏆</h1>
+        <div id="winners-list">
+            <!-- Winners table -->
+        </div>
+        <button class="btn" onclick="resetGame()">再來一局 / PLAY AGAIN 🔄</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let totalPrize = 0;
+        let players = [];
+        let currentLeader = null; // Track current leader for cheer sound
+        let leaderInitialized = false; // Track if leader was set for the first time
+        let activeItems = {}; // Track active items on track
+
+        // Generate QR Code
+        const localUrl = window.location.protocol + "//" + window.location.hostname + ":" + window.location.port + "/play";
+        document.getElementById('join-url').innerText = localUrl;
+        new QRCode(document.getElementById("qrcode-container"), {
+            text: localUrl,
+            width: 150,
+            height: 150
+        });
+
+        // Update prize display when inputs change
+        function updatePrizeDisplay() {
+            const p1 = document.getElementById('prize1').value || 0;
+            const p2 = document.getElementById('prize2').value || 0;
+            const p3 = document.getElementById('prize3').value || 0;
+            document.getElementById('display-prize1').innerText = '$' + p1;
+            document.getElementById('display-prize2').innerText = '$' + p2;
+            document.getElementById('display-prize3').innerText = '$' + p3;
+        }
+
+        // Custom track path using waypoints - follows actual dirt track in background image
+        // The track is stadium-shaped (not a perfect ellipse): straight sides + curved ends
+        // Path: START (bottom-right) → right → top → left → FINISH (bottom-left)
+
+        // Define waypoints along the actual track path
+        // Track shape: STADIUM (two straight sections + two semicircular ends)
+        // Adjusted v7 - more expansion + START/FINISH aligned to text
+        const trackWaypoints = [
+            { x: 63, y: 52 },   // 0: START - aligned with START text on track
+            { x: 82, y: 44 },   // 1: right curve - lower part
+            { x: 90, y: 32 },   // 2: right curve - middle (rightmost)
+            { x: 82, y: 20 },   // 3: right curve - upper part
+            { x: 68, y: 12 },   // 4: top straight - right end
+            { x: 32, y: 12 },   // 5: top straight - left end
+            { x: 14, y: 20 },   // 6: left curve - upper part
+            { x: 8, y: 32 },    // 7: left curve - middle (leftmost)
+            { x: 14, y: 44 },   // 8: left curve - lower part
+            { x: 28, y: 52 },   // 9: FINISH - aligned with FINISH text on track
+        ];
+
+        // Catmull-Rom spline interpolation for smooth curves
+        function catmullRom(p0, p1, p2, p3, t) {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        }
+
+        function getOvalPosition(index, total, progress = 0) {
+            // Clamp progress to 0-100
+            progress = Math.max(0, Math.min(100, progress));
+
+            // Calculate which segment of the path we're on
+            const numSegments = trackWaypoints.length - 1;
+            const progressPerSegment = 100 / numSegments;
+
+            // Find current segment index
+            const segmentIndex = Math.min(
+                Math.floor(progress / progressPerSegment),
+                numSegments - 1
+            );
+
+            // Calculate progress within current segment (0 to 1)
+            const t = (progress - segmentIndex * progressPerSegment) / progressPerSegment;
+
+            // Get 4 points for Catmull-Rom interpolation
+            // Use clamping for edge cases (no wrapping since it's not a closed loop)
+            const p0 = trackWaypoints[Math.max(0, segmentIndex - 1)];
+            const p1 = trackWaypoints[segmentIndex];
+            const p2 = trackWaypoints[segmentIndex + 1];
+            const p3 = trackWaypoints[Math.min(trackWaypoints.length - 1, segmentIndex + 2)];
+
+            // Catmull-Rom spline interpolation for smooth curves
+            let x = catmullRom(p0.x, p1.x, p2.x, p3.x, t);
+            let y = catmullRom(p0.y, p1.y, p2.y, p3.y, t);
+
+            // Spread players slightly at start position for visibility
+            if (total > 1 && progress < 5) {
+                const spreadOffset = 3;
+                const playerOffset = (index / (total - 1) - 0.5) * spreadOffset;
+                y += playerOffset;
+            }
+
+            return { x, y };
+        }
+
+        // Calculate horse facing direction based on track position
+        function getHorseDirection(progress) {
+            // Returns: 1 = facing right, -1 = facing left
+            // Track: START(63,52) → right curve up → top → left curve down → FINISH(28,52)
+            // 
+            // 0-22%: Moving right/up (right curve) → facing right
+            // 22-78%: Moving left (top + left curve) → facing left  
+            // 78-100%: Moving right/down (finish approach) → facing right
+
+            if (progress < 22) return 1;   // START + right curve: facing right
+            if (progress < 78) return -1;  // Top + left curve: facing left
+            return 1;  // Final stretch toward finish: facing right
+        }
+
+        // Update players on oval track
+        function updateOvalTrack(playerList, trackId = 'oval-track') {
+            const track = document.getElementById(trackId);
+            if (!track) return;
+
+            // Clear existing players
+            track.querySelectorAll('.track-player').forEach(el => el.remove());
+
+            playerList.forEach((p, index) => {
+                const pos = getOvalPosition(index, playerList.length, p.progress || 0);
+                const direction = getHorseDirection(p.progress || 0);
+
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'track-player';
+                playerDiv.id = 'track-' + p.id;
+                playerDiv.style.left = pos.x + '%';
+                playerDiv.style.top = pos.y + '%';
+
+                const img = document.createElement('img');
+                img.src = '/static/images/' + (p.avatar_id || 'horse1') + '.png';
+                img.onerror = function () { this.src = '/static/images/horse1.png'; };
+                // Flip horse based on direction (scaleX)
+                img.style.transform = 'scaleX(' + direction + ')';
+
+                const nameTag = document.createElement('div');
+                nameTag.className = 'track-player-name';
+                nameTag.innerText = p.name;
+
+                playerDiv.appendChild(img);
+                playerDiv.appendChild(nameTag);
+                track.appendChild(playerDiv);
+            });
+        }
+
+
+        // Socket Events
+        socket.on('update_player_list', (playerData) => {
+            players = playerData;
+            document.getElementById('player-count').innerText = players.length;
+
+            // Update oval track preview
+            updateOvalTrack(players, 'oval-track');
+        });
+
+        socket.on('race_started', (data) => {
+            totalPrize = data.total_prize;
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('race-screen').style.display = 'block';
+            document.getElementById('results-screen').style.display = 'none';
+
+            // Copy players to race track
+            updateOvalTrack(players, 'race-oval-track');
+
+            // 顯示大型倒數數字
+            showCountdown();
+
+            // 播放開始音效並切換到賽跑音樂
+            playStartSound();
+            setTimeout(() => startRacingMusic(), 3500);
+        });
+
+        // 大型倒數顯示
+        function showCountdown() {
+            const countdownEl = document.createElement('div');
+            countdownEl.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:200px;font-weight:bold;color:#FFD700;text-shadow:0 0 30px #ff0,0 0 60px #ff8800;z-index:9999;text-align:center;pointer-events:none;';
+            document.body.appendChild(countdownEl);
+
+            const numbers = ['3', '2', '1', '🏇 GO!'];
+            let i = 0;
+
+            function showNext() {
+                if (i < numbers.length) {
+                    countdownEl.innerText = numbers[i];
+                    countdownEl.style.transform = 'translate(-50%,-50%) scale(0.5)';
+                    countdownEl.style.opacity = '1';
+                    countdownEl.animate([
+                        { transform: 'translate(-50%,-50%) scale(0.5)', opacity: 1 },
+                        { transform: 'translate(-50%,-50%) scale(1.2)', opacity: 1 },
+                        { transform: 'translate(-50%,-50%) scale(1)', opacity: 0.8 }
+                    ], { duration: 800, easing: 'ease-out' });
+                    i++;
+                    setTimeout(showNext, 1000);
+                } else {
+                    countdownEl.animate([
+                        { opacity: 0.8 },
+                        { opacity: 0 }
+                    ], { duration: 300 });
+                    setTimeout(() => countdownEl.remove(), 300);
+                }
+            }
+            showNext();
+        }
+
+        socket.on('player_update', (data) => {
+            // Find player and update progress
+            const player = players.find(p => p.id === data.id);
+            if (player) {
+                player.progress = data.progress;
+            }
+
+            // Check for leader change and play cheer sound
+            // Only play when leader TRULY changes (not on first initialization)
+            if (players.length > 1) {
+                const sortedPlayers = [...players].sort((a, b) => (b.progress || 0) - (a.progress || 0));
+                const newLeader = sortedPlayers[0];
+                if (newLeader && (newLeader.progress || 0) > 0) {
+                    if (!leaderInitialized) {
+                        // First time setting leader - no sound
+                        currentLeader = newLeader.id;
+                        leaderInitialized = true;
+                    } else if (newLeader.id !== currentLeader) {
+                        // Real leader change - play cheer!
+                        currentLeader = newLeader.id;
+                        playCheerSound();
+                    }
+                }
+            }
+
+            // Update position on race oval track (find in the VISIBLE race track)
+            const raceTrack = document.getElementById('race-oval-track');
+            const trackPlayer = raceTrack ? raceTrack.querySelector('#track-' + data.id) : null;
+            if (trackPlayer) {
+                const index = players.findIndex(p => p.id === data.id);
+                const pos = getOvalPosition(index, players.length, data.progress);
+                trackPlayer.style.left = pos.x + '%';
+                trackPlayer.style.top = pos.y + '%';
+
+                // 動態更新馬頭方向
+                const direction = getHorseDirection(data.progress);
+                const horseImg = trackPlayer.querySelector('img');
+                if (horseImg) {
+                    horseImg.style.transform = 'scaleX(' + direction + ')';
+                }
+            }
+        });
+
+        // Quiz sent - a question was sent to a player
+        socket.on('quiz_sent', (data) => {
+            console.log('Quiz sent to:', data);
+            const floatingText = document.createElement('div');
+            floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#FFD700;text-shadow:0 0 10px #FFD700;z-index:1000;text-align:center;pointer-events:none;';
+            floatingText.innerHTML = `❓ ${data.player_name} 正在作答...`;
+            document.body.appendChild(floatingText);
+            floatingText.animate([
+                { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+                { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
+            ], { duration: 3000, easing: 'ease-out' });
+            setTimeout(() => floatingText.remove(), 3000);
+        });
+
+        // Quiz answered - show result on host
+        socket.on('quiz_answered', (data) => {
+            console.log('Quiz answered:', data);
+            const horseEl = document.querySelector('#track-' + data.player_id);
+
+            // Create result notification
+            const floatingText = document.createElement('div');
+            floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:28px;font-weight:bold;z-index:1000;text-align:center;pointer-events:none;';
+
+            if (data.correct) {
+                floatingText.style.color = '#00FF00';
+                floatingText.style.textShadow = '0 0 10px #0f0';
+                floatingText.innerHTML = `✅ ${data.player_name} 答對了! +5%`;
+                if (horseEl) showEffectOnHorse(horseEl, 'food');
+                playCorrectSound();
+            } else {
+                floatingText.style.color = '#FF0000';
+                floatingText.style.textShadow = '0 0 10px #f00';
+                floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 5 秒!`;
+                if (horseEl) {
+                    horseEl.classList.add('frozen');
+                    setTimeout(() => horseEl.classList.remove('frozen'), 5000);
+                }
+                playWrongSound();
+            }
+
+            document.body.appendChild(floatingText);
+            floatingText.animate([
+                { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+                { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
+            ], { duration: 2500, easing: 'ease-out' });
+            setTimeout(() => floatingText.remove(), 2500);
+        });
+
+        // Quiz timeout - player didn't answer in time
+        socket.on('quiz_timeout_notify', (data) => {
+            console.log('Quiz timeout:', data);
+            const floatingText = document.createElement('div');
+            floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#888;text-shadow:0 0 10px #666;z-index:1000;text-align:center;pointer-events:none;';
+            floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答`;
+            document.body.appendChild(floatingText);
+            floatingText.animate([
+                { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+                { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
+            ], { duration: 2000, easing: 'ease-out' });
+            setTimeout(() => floatingText.remove(), 2000);
+        });
+
+        function renderItem(item, trackId) {
+            const track = document.getElementById(trackId);
+            if (!track) return;
+
+            const pos = getOvalPosition(0, 1, item.position);
+
+            const itemDiv = document.createElement('div');
+            itemDiv.id = 'item-' + item.id;
+            itemDiv.className = 'track-item';
+            itemDiv.style.position = 'absolute';
+            itemDiv.style.left = pos.x + '%';
+            itemDiv.style.top = pos.y + '%';
+            itemDiv.style.transform = 'translate(-50%, -50%)';
+            itemDiv.style.fontSize = '35px';
+            itemDiv.style.zIndex = '8';
+            itemDiv.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))';
+            itemDiv.style.opacity = '0';  // Start invisible
+            itemDiv.style.transition = 'opacity 0.5s ease-in';
+
+            // Different icons for different types
+            itemDiv.innerText = item.type === 'food' ? '🍎' : '🔧';
+
+            track.appendChild(itemDiv);
+
+            // Fade in after a small delay
+            setTimeout(() => {
+                itemDiv.style.opacity = '1';
+                itemDiv.style.animation = 'item-bounce 0.5s ease-in-out infinite';
+            }, 50);
+        }
+
+        function removeItem(itemId, effectType, playerId) {
+            console.log('Removing item:', itemId, effectType, playerId);
+            const itemEl = document.getElementById('item-' + itemId);
+            if (itemEl) {
+                const rect = itemEl.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+
+                // Create visual effect at item location
+                if (effectType === 'food') {
+                    createDustEffect(x, y, '#FFD700'); // Gold sparkles
+                } else {
+                    createDizzyEffect(x, y); // Dizzy stars
+                }
+
+                // Remove item immediately after effect starts
+                itemEl.style.transition = 'opacity 0.2s, transform 0.2s';
+                itemEl.style.opacity = '0';
+                itemEl.style.transform = 'translate(-50%, -80%) scale(1.5)';
+                setTimeout(() => {
+                    if (itemEl.parentNode) {
+                        itemEl.parentNode.removeChild(itemEl);
+                    }
+                }, 200);
+            } else {
+                console.log('Item element not found:', 'item-' + itemId);
+            }
+
+            // Add effect indicator on the horse
+            if (playerId) {
+                const horseEl = document.querySelector('#track-' + playerId);
+                if (horseEl) {
+                    console.log('Found horse element, showing effect:', effectType);
+                    showEffectOnHorse(horseEl, effectType);
+
+                    // Also create particles at horse position
+                    const horseRect = horseEl.getBoundingClientRect();
+                    const hx = horseRect.left + horseRect.width / 2;
+                    const hy = horseRect.top + horseRect.height / 2;
+                    if (effectType === 'food') {
+                        createDustEffect(hx, hy, '#00FF00'); // Green sparkles on horse
+                    } else {
+                        createDizzyEffect(hx, hy); // Dizzy on horse
+                    }
+                } else {
+                    console.log('Horse element not found:', '#track-' + playerId);
+                }
+            }
+        }
+
+        function createDustEffect(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.width = '8px';
+                particle.style.height = '8px';
+                particle.style.background = color;
+                particle.style.borderRadius = '50%';
+                particle.style.pointerEvents = 'none';
+                particle.style.zIndex = '1000';
+                particle.style.boxShadow = '0 0 6px ' + color;
+
+                const angle = (i / 8) * Math.PI * 2;
+                const distance = 30 + Math.random() * 20;
+                const endX = x + Math.cos(angle) * distance;
+                const endY = y + Math.sin(angle) * distance;
+
+                document.body.appendChild(particle);
+
+                particle.animate([
+                    { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                    { transform: `translate(${endX - x - 4}px, ${endY - y - 4}px) scale(0)`, opacity: 0 }
+                ], { duration: 500, easing: 'ease-out' });
+
+                setTimeout(() => particle.remove(), 500);
+            }
+        }
+
+        function createDizzyEffect(x, y) {
+            const symbols = ['💫', '⭐', '✨', '😵'];
+            for (let i = 0; i < 4; i++) {
+                const star = document.createElement('div');
+                star.innerText = symbols[i];
+                star.style.position = 'fixed';
+                star.style.left = x + 'px';
+                star.style.top = y + 'px';
+                star.style.fontSize = '24px';
+                star.style.pointerEvents = 'none';
+                star.style.zIndex = '1000';
+
+                const angle = (i / 4) * Math.PI * 2;
+                const distance = 40;
+
+                document.body.appendChild(star);
+
+                star.animate([
+                    { transform: 'translate(-50%, -50%) rotate(0deg)', opacity: 1 },
+                    { transform: `translate(${Math.cos(angle) * distance - 12}px, ${Math.sin(angle) * distance - 12}px) rotate(360deg)`, opacity: 0 }
+                ], { duration: 800, easing: 'ease-out' });
+
+                setTimeout(() => star.remove(), 800);
+            }
+        }
+
+        function showEffectOnHorse(horseEl, effectType) {
+            console.log('showEffectOnHorse called:', effectType);
+
+            // Remove any existing effect classes
+            horseEl.classList.remove('boosted', 'slowed', 'dodging');
+
+            // Add the appropriate effect class
+            const isFood = effectType === 'food';
+            if (isFood) {
+                horseEl.classList.add('boosted');
+                console.log('Added boosted class');
+            } else {
+                horseEl.classList.add('slowed');
+                console.log('Added slowed class');
+            }
+
+            // Add floating text indicator
+            const indicator = document.createElement('div');
+            indicator.style.position = 'absolute';
+            indicator.style.top = '-40px';
+            indicator.style.left = '50%';
+            indicator.style.transform = 'translateX(-50%)';
+            indicator.style.fontSize = '28px';
+            indicator.style.fontWeight = 'bold';
+            indicator.style.animation = 'effect-pulse 0.3s ease-in-out 6';
+            indicator.style.textShadow = effectType === 'food'
+                ? '0 0 15px #0f0, 0 0 30px #0f0'
+                : '0 0 15px #f00, 0 0 30px #f00';
+            indicator.innerText = effectType === 'food' ? '🚀加速!' : '�減速!';
+            indicator.style.color = effectType === 'food' ? '#0f0' : '#f00';
+
+            horseEl.appendChild(indicator);
+
+            // Remove effect after duration
+            setTimeout(() => {
+                indicator.remove();
+                horseEl.classList.remove('boosted', 'slowed');
+            }, effectType === 'food' ? 3000 : 2000);
+        }
+
+
+        function playItemSound(type) {
+            if (type === 'boost') {
+                // Happy ascending tone
+                playTone(523.25, 'sine', 0.1, 0.2);
+                setTimeout(() => playTone(659.25, 'sine', 0.1, 0.2), 100);
+            } else {
+                // Sad descending tone
+                playTone(392, 'sawtooth', 0.15, 0.2);
+                setTimeout(() => playTone(329.63, 'sawtooth', 0.15, 0.2), 120);
+            }
+        }
+
+
+        socket.on('game_results', (results) => {
+            document.getElementById('race-screen').style.display = 'none';
+            document.getElementById('results-screen').style.display = 'block';
+
+            playWinSound();
+            fireConfetti();
+
+            const list = document.getElementById('winners-list');
+            list.innerHTML = '';
+
+            // Create a table
+            let html = '<table style="margin: 0 auto; font-size: 24px; border-collapse: collapse;">';
+            html += '<tr><th style="padding:10px;">名次</th><th style="padding:10px;">名字</th><th style="padding:10px;">獎金 💰</th></tr>';
+
+            results.forEach(p => {
+                let medalEmoji = '';
+                if (p.rank === 1) medalEmoji = '🥇';
+                else if (p.rank === 2) medalEmoji = '🥈';
+                else if (p.rank === 3) medalEmoji = '🥉';
+
+                html += `<tr>
+                    <td style="padding:10px; border-bottom:1px solid gold;">${medalEmoji} #${p.rank}</td>
+                    <td style="padding:10px; border-bottom:1px solid gold;">${p.name}</td>
+                    <td style="padding:10px; border-bottom:1px solid gold;">$${p.prize}</td>
+                </tr>`;
+            });
+            html += '</table>';
+            list.innerHTML = html;
+        });
+
+        socket.on('reset_game_client', () => {
+            location.reload();
+        });
+
+        function startRace() {
+            const prize1 = parseInt(document.getElementById('prize1').value) || 0;
+            const prize2 = parseInt(document.getElementById('prize2').value) || 0;
+            const prize3 = parseInt(document.getElementById('prize3').value) || 0;
+
+            socket.emit('start_race', {
+                top3_prizes: [prize1, prize2, prize3],
+                amount: prize1 + prize2 + prize3 // Total as fallback
+            });
+
+            checkFinishInterval = setInterval(checkForFinish, 1000);
+        }
+
+        function checkForFinish() {
+            // Let server handle finish detection
+        }
+
+        function resetGame() {
+            socket.emit('reset_game');
+        }
+
+        // --- Audio System (MP3 Files) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Audio elements for music
+        const waitingMusic = new Audio('/static/audio/等待入場的音樂.mp3');
+        waitingMusic.loop = true;
+        waitingMusic.volume = 0.5;
+
+        const racingMusic = new Audio('/static/audio/競賽的音樂Galloping Gags at 160.mp3');
+        racingMusic.loop = true;
+        racingMusic.volume = 0.6;
+
+        // Sound effects
+        const correctSound = new Audio('/static/audio/correct.mp3');
+        correctSound.volume = 0.6;
+
+        const wrongSound = new Audio('/static/audio/wrong.mp3');
+        wrongSound.volume = 0.6;
+
+        const fireworksSound = new Audio('/static/audio/new-years-eve-in-peru-fireworks-fire-crackers-and-rockets-to-celebrate-the-new-year-pisco-peru-2012-17692.mp3');
+        fireworksSound.volume = 0.7;
+
+        function playTone(freq, type, duration, volume = 0.3) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = freq;
+            osc.type = type;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.stop(audioCtx.currentTime + duration);
+            return osc;
+        }
+
+        // 歡呼音效 - 當領先者變動時播放
+        function playCheerSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const freqs = [523.25, 659.25, 783.99, 1046.50];
+            freqs.forEach((freq, i) => {
+                setTimeout(() => playTone(freq, 'triangle', 0.15, 0.4), i * 50);
+            });
+        }
+
+        // 等待音樂 - 使用 MP3
+        function startWaitingMusic() {
+            stopAllMusic();
+            waitingMusic.currentTime = 0;
+            waitingMusic.play().catch(e => console.log('Waiting music autoplay blocked'));
+        }
+
+        // 賽跑音樂 - 使用 MP3
+        function startRacingMusic() {
+            stopAllMusic();
+            racingMusic.currentTime = 0;
+            racingMusic.play().catch(e => console.log('Racing music autoplay blocked'));
+        }
+
+        function stopAllMusic() {
+            waitingMusic.pause();
+            racingMusic.pause();
+        }
+
+        function playStartSound() {
+            // Countdown beeps: 3-2-1-GO! (synthesized tones)
+            setTimeout(() => playTone(440, 'square', 0.1, 0.3), 0);
+            setTimeout(() => playTone(440, 'square', 0.1, 0.3), 1000);
+            setTimeout(() => playTone(440, 'square', 0.1, 0.3), 2000);
+            setTimeout(() => playTone(880, 'sawtooth', 0.5, 0.4), 3000);
+        }
+
+        function playWinSound() {
+            stopAllMusic();
+            // Play fireworks MP3
+            fireworksSound.currentTime = 0;
+            fireworksSound.play().catch(e => { });
+        }
+
+        // 答對/答錯音效
+        function playCorrectSound() {
+            correctSound.currentTime = 0;
+            correctSound.play().catch(e => { });
+        }
+
+        function playWrongSound() {
+            wrongSound.currentTime = 0;
+            wrongSound.play().catch(e => { });
+        }
+
+        // 頁面載入時播放等待音樂
+        document.addEventListener('click', function startMusicOnce() {
+            startWaitingMusic();
+            document.removeEventListener('click', startMusicOnce);
+        }, { once: true });
+
+        // --- Confetti ---
+        function fireConfetti() {
+            var script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+            script.onload = () => {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            };
+            document.head.appendChild(script);
+        }
+
+        // Add "Finish Now" button for testing/manual override
+        const finishBtn = document.createElement('button');
+        finishBtn.innerText = "結束比賽 (計算結果)";
+        finishBtn.className = 'btn';
+        finishBtn.style.fontSize = '14px';
+        finishBtn.style.marginTop = '20px';
+        finishBtn.onclick = () => { socket.emit('calculate_results'); };
+        document.getElementById('race-screen').appendChild(finishBtn);
+
+        // Initialize prize display
+        updatePrizeDisplay();
+    </script>
+</body>
+
+</html>

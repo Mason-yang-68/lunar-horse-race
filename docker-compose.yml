@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  horse-race:
+    build: .
+    container_name: lunar-horse-race
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount to preserve any runtime data if needed
+      - ./static:/app/static:ro
+      - ./templates:/app/templates:ro

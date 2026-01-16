@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Join Race - 金馬迎春</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        /* Mobile specific adjustments */
+        #shake-area {
+            touch-action: none;
+        }
+
+        .wait-avatar {
+            width: 120px;
+            height: auto;
+            animation: bounce 1s infinite;
+            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.5));
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        .wait-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .wait-message {
+            background: linear-gradient(145deg, rgba(255, 215, 0, 0.2), rgba(139, 0, 0, 0.3));
+            border: 2px solid gold;
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin: 20px 0;
+        }
+
+        .player-name-display {
+            font-size: 28px;
+            color: gold;
+            font-weight: bold;
+            margin: 15px 0;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .festive-decoration {
+            font-size: 40px;
+            margin: 10px;
+        }
+
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-30px);
+            }
+        }
+
+        /* Quiz Popup Styles */
+        .quiz-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .quiz-box {
+            background: linear-gradient(135deg, #8B0000, #5c0000);
+            border: 4px solid gold;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 0 30px gold;
+        }
+
+        .quiz-question {
+            font-size: 24px;
+            color: gold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .quiz-option {
+            display: block;
+            width: 100%;
+            padding: 15px 25px;
+            margin: 10px 0;
+            font-size: 20px;
+            background: linear-gradient(to bottom, #FFD700, #DAA520);
+            color: #8B0000;
+            border: 3px solid #FFF;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .quiz-option:active {
+            transform: scale(0.95);
+        }
+
+        .quiz-result {
+            font-size: 36px;
+            margin-top: 15px;
+        }
+
+        .freeze-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            color: #00BFFF;
+            text-shadow: 0 0 20px #00BFFF;
+            z-index: 9000;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="login-screen" style="text-align: center; padding-top: 30px;">
+        <h1>🧧 金馬迎春賽跑</h1>
+        <div id="avatar-grid"
+            style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 20px; max-width: 400px; margin-left: auto; margin-right: auto;">
+            <!-- Avatars injected here -->
+        </div>
+        <input type="hidden" id="selected-avatar" value="horse1">
+        <input type="text" id="player-name" placeholder="輸入你的名字" style="width: 80%; max-width: 300px;">
+        <br><br>
+        <button class="btn" onclick="joinGame()">加入比賽 / JOIN</button>
+        <p style="font-size: 12px; color: #ccc;">(iOS users: Must allow Motion access)</p>
+    </div>
+
+    <div id="permission-screen" style="display: none; text-align: center; padding-top: 50px;">
+        <h2>Ready?</h2>
+        <p>We need access to your motion sensors to detect shaking.</p>
+        <button class="btn" onclick="requestPermission()">開啟搖晃感應 📳</button>
+    </div>
+
+    <div id="wait-screen" style="display: none;">
+        <div class="wait-container">
+            <div class="festive-decoration">🧧 🎊 🧧</div>
+
+            <h2 style="color: gold; margin-bottom: 5px;">等待主持人開始...</h2>
+
+            <!-- Display player's selected avatar -->
+            <img id="wait-avatar-img" class="wait-avatar" src="" alt="Your Horse">
+
+            <div class="player-name-display" id="wait-player-name"></div>
+
+            <div class="wait-message">
+                <p style="font-size: 18px; margin: 0;">🎠 準備好搖動手機!</p>
+                <p style="font-size: 14px; color: #ccc; margin-top: 10px;">Get ready to shake!</p>
+            </div>
+
+            <div class="festive-decoration">🏆 馬到成功 🏆</div>
+        </div>
+    </div>
+
+    <div id="race-screen"
+        style="display: none; height: 100vh; background: linear-gradient(to bottom, #8B0000, #5c0000); touch-action: manipulation;">
+        <div id="shake-area"
+            style="height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h1 style="font-size: 36px; color: gold; margin-bottom: 10px;">SHAKE!!! 搖!</h1>
+            <div class="shake-icon" style="font-size: 60px; margin-bottom: 20px;">👋</div>
+
+            <!-- Fallback for non-sensor devices or HTTP restrictions -->
+            <button class="btn shake-btn" onclick="manualShake()" style="
+                background: linear-gradient(to bottom, #FFD700, #DAA520);
+                color: #8B0000;
+                font-size: 28px;
+                font-weight: 900;
+                width: 250px; 
+                height: 120px; 
+                border-radius: 60px;
+                border: 4px solid #FFF;
+                box-shadow: 0 10px 0 #B8860B, 0 10px 10px rgba(0,0,0,0.3);
+                transition: transform 0.05s;
+                cursor: pointer;
+                touch-action: manipulation;
+            ">TAP! TAP!</button>
+            <p style="color: white; opacity: 0.7; margin-top: 15px;">(用力搖晃手機或點擊按鈕!)</p>
+        </div>
+    </div>
+
+    <div id="result-screen" style="display: none; text-align: center; padding-top: 50px;">
+        <h1 style="color: gold;">🎉 完成!</h1>
+        <div
+            style="background: rgba(0,0,0,0.3); padding: 30px; border-radius: 20px; margin: 20px; border: 3px solid gold;">
+            <h2 id="my-rank" style="font-size: 32px; color: gold;">名次: ?</h2>
+            <h2 id="my-prize" style="font-size: 40px; color: #FFD700;">獎金: $?</h2>
+        </div>
+        <div class="festive-decoration">🧧 恭喜發財 🧧</div>
+    </div>
+
+    <script>
+        const socket = io();
+        let myId = null;
+        let myName = '';
+        let myAvatar = 'horse1';
+
+        socket.on('join_success', (data) => {
+            myId = data.id;
+
+            // Show player's selected avatar in wait screen
+            const avatarImg = document.getElementById('wait-avatar-img');
+            avatarImg.src = '/static/images/' + myAvatar + '.png';
+            avatarImg.onerror = function () { this.src = '/static/images/horse1.png'; };
+
+            // Show player name
+            document.getElementById('wait-player-name').innerText = myName;
+
+            // Check for DeviceMotionEvent permission support
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('permission-screen').style.display = 'block';
+            } else {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('wait-screen').style.display = 'block';
+                startListening();
+            }
+        });
+
+        socket.on('race_started', () => {
+            document.getElementById('permission-screen').style.display = 'none';
+            document.getElementById('wait-screen').style.display = 'none';
+            document.getElementById('race-screen').style.display = 'block';
+
+            // Vibrate to signal start
+            if (navigator.vibrate) navigator.vibrate(200);
+        });
+
+        socket.on('game_results', (results) => {
+            document.getElementById('race-screen').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+
+            const myResult = results.find(r => r.name === myName);
+            if (myResult) {
+                let medalEmoji = '';
+                if (myResult.rank === 1) medalEmoji = '🥇 ';
+                else if (myResult.rank === 2) medalEmoji = '🥈 ';
+                else if (myResult.rank === 3) medalEmoji = '🥉 ';
+
+                document.getElementById('my-rank').innerText = medalEmoji + "名次: #" + myResult.rank;
+                document.getElementById('my-prize').innerText = "獎金: $" + myResult.prize;
+
+                // Vibrate for excitement
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+            } else {
+                document.getElementById('my-rank').innerText = "請看主螢幕";
+            }
+        });
+
+        // Quiz question received
+        let currentQuestionId = null;
+        let quizTimeoutHandle = null;
+
+        socket.on('quiz_question', (data) => {
+            currentQuestionId = data.question_id;
+
+            // Vibrate 3 times to alert (stronger pattern)
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+
+            // Create quiz overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'quiz-overlay';
+            overlay.id = 'quiz-overlay';
+
+            const box = document.createElement('div');
+            box.className = 'quiz-box';
+
+            // Timer display
+            const timerEl = document.createElement('div');
+            timerEl.style.cssText = 'font-size:40px;color:gold;margin-bottom:10px;';
+            timerEl.id = 'quiz-timer';
+            timerEl.innerText = '⏱️ 5';
+            box.appendChild(timerEl);
+
+            // Start countdown
+            let timeLeft = 5;
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = '⏱️ ' + timeLeft;
+                if (timeLeft <= 2) timerEl.style.color = '#ff4444';
+            }, 1000);
+
+            const questionEl = document.createElement('div');
+            questionEl.className = 'quiz-question';
+            questionEl.innerText = '❓ ' + data.question;
+            box.appendChild(questionEl);
+
+            // Options
+            data.options.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option';
+                btn.innerText = ['(A) ', '(B) ', '(C) '][index] + option;
+                btn.onclick = () => {
+                    clearInterval(countdownInterval);
+                    clearTimeout(quizTimeoutHandle);
+                    submitAnswer(index);
+                };
+                box.appendChild(btn);
+            });
+
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+
+            // Auto-timeout after 5 seconds
+            quizTimeoutHandle = setTimeout(() => {
+                clearInterval(countdownInterval);
+                const existing = document.getElementById('quiz-overlay');
+                if (existing) {
+                    existing.remove();
+                    socket.emit('quiz_timeout', { question_id: currentQuestionId });
+                    currentQuestionId = null;
+
+                    // Show timeout message
+                    const timeoutDiv = document.createElement('div');
+                    timeoutDiv.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);font-size:36px;color:#FFD700;text-shadow:0 0 10px #FFD700;z-index:9999;text-align:center;';
+                    timeoutDiv.innerHTML = '⏱️ 超時！<br><span style="font-size:24px">繼續搖晃前進！</span>';
+                    document.body.appendChild(timeoutDiv);
+                    setTimeout(() => timeoutDiv.remove(), 2000);
+                }
+            }, 5000);
+        });
+
+        function submitAnswer(answerIndex) {
+            socket.emit('quiz_answer', {
+                question_id: currentQuestionId,
+                answer: answerIndex
+            });
+            currentQuestionId = null;
+
+            // Remove quiz overlay
+            const overlay = document.getElementById('quiz-overlay');
+            if (overlay) overlay.remove();
+        }
+
+        // Quiz result
+        socket.on('quiz_result', (data) => {
+            if (data.correct) {
+                // Correct - happy vibration
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);font-size:48px;color:#00FF00;text-shadow:0 0 20px #0f0;z-index:9999;text-align:center;';
+                resultDiv.innerHTML = '✅ 答對了!<br><span style="font-size:28px">+5% 前進!</span>';
+                document.body.appendChild(resultDiv);
+                setTimeout(() => resultDiv.remove(), 2000);
+            } else {
+                // Wrong - single vibration only
+                if (navigator.vibrate) navigator.vibrate(300);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);font-size:48px;color:#FF0000;text-shadow:0 0 20px #f00;z-index:9999;text-align:center;';
+                resultDiv.innerHTML = '❌ 答錯了!<br><span style="font-size:28px">凍結 5 秒!</span>';
+                document.body.appendChild(resultDiv);
+                setTimeout(() => resultDiv.remove(), 2000);
+
+                // Show freeze indicator for 5 seconds
+                const freezeEl = document.createElement('div');
+                freezeEl.className = 'freeze-indicator';
+                freezeEl.innerText = '❄️';
+                document.body.appendChild(freezeEl);
+                setTimeout(() => freezeEl.remove(), 5000);
+            }
+        });
+
+        socket.on('reset_game_client', () => {
+            location.reload();
+        });
+
+        // Build avatar grid
+        const avatarContainer = document.getElementById('avatar-grid');
+        for (let i = 1; i <= 10; i++) {
+            let div = document.createElement('div');
+            div.className = 'avatar-option';
+
+            let img = document.createElement('img');
+            img.src = '/static/images/horse' + i + '.png';
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.pointerEvents = 'none';
+
+            div.appendChild(img);
+            div.dataset.id = 'horse' + i;
+
+            div.onclick = function () {
+                document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+                this.classList.add('selected');
+                document.getElementById('selected-avatar').value = this.dataset.id;
+            };
+            if (i === 1) div.classList.add('selected');
+            avatarContainer.appendChild(div);
+        }
+
+        function joinGame() {
+            myName = document.getElementById('player-name').value;
+            myAvatar = document.getElementById('selected-avatar').value;
+            if (!myName) return alert("請輸入名字 / Please enter name");
+            socket.emit('join_game', { name: myName, avatar_id: myAvatar });
+        }
+
+        function requestPermission() {
+            DeviceMotionEvent.requestPermission()
+                .then(response => {
+                    if (response == 'granted') {
+                        document.getElementById('permission-screen').style.display = 'none';
+                        document.getElementById('wait-screen').style.display = 'block';
+                        startListening();
+                    } else {
+                        alert("Permission denied. You can still tap the button to play!");
+                        document.getElementById('permission-screen').style.display = 'none';
+                        document.getElementById('wait-screen').style.display = 'block';
+                    }
+                })
+                .catch(console.error);
+        }
+
+        let lastX = 0, lastY = 0, lastZ = 0;
+        let lastTime = 0;
+
+        function startListening() {
+            window.addEventListener('devicemotion', (event) => {
+                const currentTime = Date.now();
+                if ((currentTime - lastTime) > 100) { // Throttle 100ms
+                    const acc = event.accelerationIncludingGravity;
+                    if (!acc) return;
+
+                    const deltaX = Math.abs(acc.x - lastX);
+                    const deltaY = Math.abs(acc.y - lastY);
+                    const deltaZ = Math.abs(acc.z - lastZ);
+
+                    // Any shake = forward movement
+                    const totalShake = deltaX + deltaY + deltaZ;
+                    if (totalShake > 15) {
+                        socket.emit('shake_event', { intensity: totalShake });
+                        if (navigator.vibrate) navigator.vibrate(30);
+                    }
+
+                    lastX = acc.x;
+                    lastY = acc.y;
+                    lastZ = acc.z;
+                    lastTime = currentTime;
+                }
+            });
+        }
+
+        // --- Manual Fallback ---
+        function manualShake() {
+            // Emulate a medium-strong shake
+            socket.emit('shake_event', { intensity: 20 });
+
+            // Haptic and Visual feedback
+            if (navigator.vibrate) navigator.vibrate(15);
+
+            const btn = document.querySelector('.shake-btn');
+            if (btn) {
+                btn.style.transform = 'translateY(10px)';
+                btn.style.boxShadow = '0 0 0 #B8860B, 0 0 0 rgba(0,0,0,0)';
+                setTimeout(() => {
+                    btn.style.transform = 'translateY(0)';
+                    btn.style.boxShadow = '0 10px 0 #B8860B, 0 10px 10px rgba(0,0,0,0.3)';
+                }, 100);
+            }
+        }
+
+        // --- Client Audio System (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let clientMusicInterval = null;
+
+        function playClientTone(freq, type, duration, volume = 0.15) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = freq;
+            osc.type = type;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // 新年等待音樂 - 中國風五聲音階
+        function startClientWaitingMusic() {
+            if (clientMusicInterval) return;
+            const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+            let noteIndex = 0;
+            const melody = [0, 2, 4, 5, 4, 2, 0, 2, 4, 2, 0, -1];
+
+            clientMusicInterval = setInterval(() => {
+                const idx = melody[noteIndex % melody.length];
+                if (idx >= 0) {
+                    playClientTone(pentatonic[idx], 'triangle', 0.4, 0.1);
+                }
+                noteIndex++;
+            }, 400);
+        }
+
+        function stopClientMusic() {
+            if (clientMusicInterval) {
+                clearInterval(clientMusicInterval);
+                clientMusicInterval = null;
+            }
+        }
+
+        // 進入等待畫面後播放音樂
+        const originalJoinSuccess = socket._callbacks['$join_success'];
+        socket.on('join_success', (data) => {
+            // 在使用者互動後啟動音樂 (等待畫面點擊)
+            document.getElementById('wait-screen').addEventListener('click', function startMusic() {
+                startClientWaitingMusic();
+                this.removeEventListener('click', startMusic);
+            }, { once: true });
+        });
+
+        // 比賽開始時停止音樂
+        socket.on('race_started', () => {
+            stopClientMusic();
+        });
+    </script>
+</body>
+
+</html>
