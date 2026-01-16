@@ -635,6 +635,9 @@
         </div>
 
         <button class="btn" onclick="startRace()">開始賽跑 / START RACE 🏁</button>
+        <button class="btn" onclick="addBots(9)"
+            style="background:linear-gradient(145deg,#444,#222);margin-left:10px;font-size:14px;padding:10px 20px;">+9
+            🤖 測試</button>
     </div>
 
     <div id="race-screen" style="display: none;">
@@ -1210,6 +1213,10 @@
 
         function resetGame() {
             socket.emit('reset_game');
+        }
+
+        function addBots(count) {
+            socket.emit('add_bots', { count: count });
         }
 
         // --- Audio System (MP3 Files) ---

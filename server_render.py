@@ -12,12 +12,68 @@ socketio = SocketIO(app, async_mode='eventlet')
 
 # State
 PLAYERS = {} # { sid: { name: "Name", score: 0, avatar: "horse1", finished: False } }
+BOT_PLAYERS = []  # List of bot player IDs
 GAME_STATE = {
     'status': 'WAITING', # WAITING, RACING, FINISHED
     'total_prize': 0
 }
 ITEMS = {} # { item_id: { type: 'food'|'hardware', position: {x, y}, active: True } }
 ACTIVE_EFFECTS = {} # { sid: { type: 'food'|'hardware', end_time: timestamp } }
+
+# Bot player auto-shake runner
+def bot_runner():
+    import time
+    BOT_NAMES = ['🤖小明', '🤖小華', '🤖阿寶', '🤖大雄', '🤖小新', '🤖小丸', '🤖阿呆', '🤖小智', '🤖喵喵']
+    while GAME_STATE['status'] == 'RACING':
+        eventlet.sleep(random.uniform(0.3, 0.8))  # Random shake interval
+        for bot_id in BOT_PLAYERS:
+            if bot_id in PLAYERS and not PLAYERS[bot_id].get('finished'):
+                player = PLAYERS[bot_id]
+                current_time = time.time()
+                
+                # Check countdown
+                race_start_time = GAME_STATE.get('race_start_time', 0)
+                if current_time < race_start_time:
+                    continue
+                
+                # Check if frozen or answering
+                if player.get('freeze_until', 0) > current_time:
+                    continue
+                if player.get('answering_until', 0) > current_time:
+                    # Bot auto-answers randomly
+                    if random.random() < 0.5:  # 50% chance correct
+                        player['progress'] = min(100, player['progress'] + 5)
+                        player['quiz_cooldown_until'] = current_time + 2
+                    else:
+                        player['freeze_until'] = current_time + 2
+                        player['quiz_cooldown_until'] = current_time + 7
+                    player['answering_until'] = 0
+                    continue
+                
+                # Simulate shake
+                intensity = random.randint(20, 50)
+                base_move = 0.033
+                bonus = (intensity / 300.0)
+                move_amount = base_move + bonus
+                
+                player['progress'] = min(100, player['progress'] + move_amount)
+                
+                # Check finish
+                if player['progress'] >= 100 and not player.get('finished'):
+                    player['finished'] = True
+                    finished_count = sum(1 for p in PLAYERS.values() if p.get('finished'))
+                    player['finish_order'] = finished_count
+                    
+                    if finished_count >= len(PLAYERS):
+                        # All finished
+                        from server_render import on_calculate_results
+                        socketio.start_background_task(on_calculate_results)
+                
+                # Broadcast update
+                socketio.emit('player_update', {
+                    'id': bot_id,
+                    'progress': player['progress']
+                })
 
 @app.route('/')
 def index():
@@ -59,6 +115,37 @@ def on_join(data):
         'dodge_until': 0  # Timestamp when dodge expires
     }
     emit('join_success', {'id': request.sid}, room=request.sid)
+    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+
+@socketio.on('add_bots')
+def on_add_bots(data):
+    """Add bot players for testing"""
+    if GAME_STATE['status'] != 'WAITING':
+        return
+    
+    count = min(int(data.get('count', 1)), 9)  # Max 9 bots
+    BOT_NAMES = ['🤖小明', '🤖小華', '🤖阿寶', '🤖大雄', '🤖小新', '🤖小丸', '🤖阿呆', '🤖小智', '🤖喵喵']
+    
+    import uuid
+    for i in range(count):
+        if len(BOT_PLAYERS) >= 9:
+            break
+        bot_id = f"bot_{uuid.uuid4().hex[:8]}"
+        name = BOT_NAMES[len(BOT_PLAYERS) % len(BOT_NAMES)]
+        avatar_id = f"horse{random.randint(1, 10)}"
+        
+        PLAYERS[bot_id] = {
+            'id': bot_id,
+            'name': name,
+            'avatar_id': avatar_id,
+            'progress': 0,
+            'speed': 0,
+            'finished': False,
+            'is_bot': True
+        }
+        BOT_PLAYERS.append(bot_id)
+        print(f"Bot added: {name} ({bot_id})")
+    
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)
 
 @socketio.on('start_race')
@@ -103,6 +190,11 @@ def on_start_race(data):
     # Start quiz spawning (will wait for countdown to finish)
     socketio.start_background_task(quiz_spawner)
     print("Quiz spawner started!")
+    
+    # Start bot runner if there are bots
+    if BOT_PLAYERS:
+        socketio.start_background_task(bot_runner)
+        print(f"Bot runner started for {len(BOT_PLAYERS)} bots!")
     
     # Check if we need to emit prizes to client? No, only results.
     emit('race_started', {'total_prize': GAME_STATE['total_prize']}, broadcast=True)
@@ -599,6 +691,7 @@ def on_calculate_results():
 def on_reset():
     GAME_STATE['status'] = 'WAITING'
     PLAYERS.clear()
+    BOT_PLAYERS.clear()  # Clear bots on reset
     emit('reset_game_client', broadcast=True)
 
 if __name__ == '__main__':
