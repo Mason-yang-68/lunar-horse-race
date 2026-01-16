@@ -936,10 +936,10 @@
             } else {
                 floatingText.style.color = '#FF0000';
                 floatingText.style.textShadow = '0 0 10px #f00';
-                floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 5 秒!`;
+                floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 2 秒!`;
                 if (horseEl) {
                     horseEl.classList.add('frozen');
-                    setTimeout(() => horseEl.classList.remove('frozen'), 5000);
+                    setTimeout(() => horseEl.classList.remove('frozen'), 2000);
                 }
                 playWrongSound();
             }

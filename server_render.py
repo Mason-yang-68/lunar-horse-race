@@ -87,6 +87,10 @@ def on_start_race(data):
         GAME_STATE['top3_prizes'] = None
         
     GAME_STATE['status'] = 'RACING'
+    # Set race start time (after 4 second countdown)
+    import time
+    GAME_STATE['race_start_time'] = time.time() + 4  # 4 seconds countdown
+    
     # Reset progress and items
     ITEMS.clear()
     ACTIVE_EFFECTS.clear()
@@ -96,7 +100,7 @@ def on_start_race(data):
         PLAYERS[pid]['finished'] = False
         PLAYERS[pid]['finish_order'] = 0
     
-    # Start item spawning using proper background task
+    # Start quiz spawning (will wait for countdown to finish)
     socketio.start_background_task(quiz_spawner)
     print("Quiz spawner started!")
     
@@ -322,13 +326,13 @@ def on_quiz_answer(data):
     if is_correct:
         # Correct: Move forward 5% instantly (no speed boost) + 5 second cooldown
         player['progress'] = min(100, player['progress'] + 5)
-        player['quiz_cooldown_until'] = current_time + 5
-        print(f"{player['name']} answered CORRECTLY! (+5%, cooldown 5s)")
+        player['quiz_cooldown_until'] = current_time + 2  # Was 5, now 2
+        print(f"{player['name']} answered CORRECTLY! (+5%, cooldown 2s)")
     else:
-        # Wrong: Freeze for 5 seconds + 10 second cooldown before next question
-        player['freeze_until'] = current_time + 5
-        player['quiz_cooldown_until'] = current_time + 10
-        print(f"{player['name']} answered WRONG! (frozen 5s, cooldown 10s)")
+        # Wrong: Freeze for 2 seconds + 7 second cooldown before next question
+        player['freeze_until'] = current_time + 2  # Was 5, now 2
+        player['quiz_cooldown_until'] = current_time + 7  # Was 10, now 7
+        print(f"{player['name']} answered WRONG! (frozen 2s, cooldown 7s)")
     
     # Send result to the player
     socketio.emit('quiz_result', {
@@ -363,10 +367,10 @@ def on_quiz_timeout(data):
     player['answering_until'] = 0
     player['current_question_id'] = None
     
-    # Set 10 second cooldown before next question
-    player['quiz_cooldown_until'] = current_time + 10
+    # Set 7 second cooldown before next question (was 10)
+    player['quiz_cooldown_until'] = current_time + 7
     
-    print(f"{player['name']} quiz TIMEOUT! (cooldown 10s)")
+    print(f"{player['name']} quiz TIMEOUT! (cooldown 7s)")
     
     # Notify host
     socketio.emit('quiz_timeout_notify', {
@@ -393,6 +397,11 @@ def on_shake(data):
         
         player = PLAYERS[request.sid]
         current_time = time.time()
+        
+        # Check if countdown is still in progress
+        race_start_time = GAME_STATE.get('race_start_time', 0)
+        if current_time < race_start_time:
+            return  # Countdown not finished, cannot move yet
         
         # Check if player is answering a question (cannot shake)
         if player.get('answering_until', 0) > current_time:
