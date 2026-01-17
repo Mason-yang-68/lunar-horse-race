@@ -647,14 +647,21 @@
                 <!-- Race horses will be positioned here -->
             </div>
         </div>
-        <!-- Horse-shaped floating greetings clouds - positioned at right (parking area) -->
+        <!-- Horse-shaped floating greetings clouds - entire bottom parking lot area -->
         <div class="horse-clouds-container"
-            style="position:fixed;top:60%;right:0;width:200px;height:200px;overflow:hidden;pointer-events:none;z-index:5;">
-            <div class="horse-cloud moving" style="animation:slide-cloud 6s linear infinite;">🐴 馬到成功</div>
-            <div class="horse-cloud moving" style="animation:slide-cloud 5s linear infinite 1s;">🎠 萬馬奔騰</div>
-            <div class="horse-cloud moving" style="animation:slide-cloud 7s linear infinite 2s;">🏇 一馬當先</div>
-            <div class="horse-cloud moving" style="animation:slide-cloud 4s linear infinite 3s;">🎪 龍馬精神</div>
-            <div class="horse-cloud moving" style="animation:slide-cloud 5.5s linear infinite 4s;">🐎 馬年大吉</div>
+            style="position:fixed;bottom:0;left:0;right:0;height:25%;overflow:hidden;pointer-events:none;z-index:5;">
+            <!-- Row 1 - Top of parking area -->
+            <div class="horse-cloud speed" style="animation:speed-cloud 8s linear infinite;top:10%;">🐴 馬到成功</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 7s linear infinite 2s;top:15%;">🎠 萬馬奔騰</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 6s linear infinite 4s;top:5%;">🏇 一馬當先</div>
+            <!-- Row 2 - Middle -->
+            <div class="horse-cloud speed" style="animation:speed-cloud 9s linear infinite 1s;top:40%;">🎪 龍馬精神</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 5s linear infinite 3s;top:45%;">🐎 馬年大吉</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 7s linear infinite 5s;top:35%;">🌟 駿馬揚蹄</div>
+            <!-- Row 3 - Bottom -->
+            <div class="horse-cloud speed" style="animation:speed-cloud 6s linear infinite 0.5s;top:70%;">🎆 快馬加鞭</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 8s linear infinite 2.5s;top:75%;">✨ 馬上有錢</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 5s linear infinite 4.5s;top:65%;">🎊 萬事如意</div>
         </div>
 
         <!-- Live Leaderboard (left side) -->
@@ -678,25 +685,25 @@
                 white-space: nowrap;
             }
 
-            @keyframes slide-cloud {
+            @keyframes speed-cloud {
                 0% {
-                    right: -150px;
-                    top: 0;
+                    left: 110%;
                     opacity: 0;
+                    transform: scale(0.8);
                 }
 
-                10% {
+                5% {
                     opacity: 1;
                 }
 
-                90% {
+                95% {
                     opacity: 1;
                 }
 
                 100% {
-                    right: 220px;
-                    top: 180px;
+                    left: -20%;
                     opacity: 0;
+                    transform: scale(1.1);
                 }
             }
         </style>
