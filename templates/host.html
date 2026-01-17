@@ -647,8 +647,51 @@
                 <!-- Race horses will be positioned here -->
             </div>
         </div>
+        <!-- Horse-shaped floating greetings clouds -->
+        <div class="horse-clouds-container"
+            style="position:fixed;bottom:0;left:0;right:0;height:80px;overflow:hidden;pointer-events:none;z-index:5;">
+            <div class="horse-cloud"
+                style="position:absolute;bottom:10px;left:5%;animation:float-cloud 8s ease-in-out infinite;">🐴 馬到成功
+            </div>
+            <div class="horse-cloud"
+                style="position:absolute;bottom:20px;left:25%;animation:float-cloud 7s ease-in-out infinite 1s;">🎠 萬馬奔騰
+            </div>
+            <div class="horse-cloud"
+                style="position:absolute;bottom:15px;left:45%;animation:float-cloud 9s ease-in-out infinite 2s;">🏇 一馬當先
+            </div>
+            <div class="horse-cloud"
+                style="position:absolute;bottom:25px;left:65%;animation:float-cloud 6s ease-in-out infinite 0.5s;">🎪
+                龍馬精神</div>
+            <div class="horse-cloud"
+                style="position:absolute;bottom:10px;left:85%;animation:float-cloud 8s ease-in-out infinite 1.5s;">🐎
+                馬年大吉</div>
+        </div>
+        <style>
+            .horse-cloud {
+                font-size: 16px;
+                font-weight: bold;
+                color: #FFD700;
+                text-shadow: 0 0 5px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3);
+                background: linear-gradient(135deg, rgba(139, 0, 0, 0.8), rgba(80, 0, 0, 0.9));
+                padding: 8px 15px;
+                border-radius: 20px;
+                border: 2px solid gold;
+            }
+
+            @keyframes float-cloud {
+
+                0%,
+                100% {
+                    transform: translateY(0) rotate(-2deg);
+                }
+
+                50% {
+                    transform: translateY(-10px) rotate(2deg);
+                }
+            }
+        </style>
         <div
-            style="position:fixed;bottom:10px;right:15px;font-size:12px;color:rgba(255,215,0,0.6);pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.5);">
+            style="position:fixed;bottom:10px;right:15px;font-size:12px;color:rgba(255,215,0,0.6);pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.5);z-index:10;">
             🐴 designed by Mason Yang</div>
     </div>
 
@@ -904,6 +947,67 @@
                 if (horseImg) {
                     horseImg.style.transform = 'scaleX(' + direction + ')';
                 }
+            }
+        });
+
+        // Player finished - show finish animation and rank
+        socket.on('player_finished', (data) => {
+            console.log('Player finished:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            if (horseEl) {
+                // Add golden glow animation
+                horseEl.style.filter = 'drop-shadow(0 0 10px gold) drop-shadow(0 0 20px yellow)';
+                horseEl.style.transform = 'scale(1.2)';
+
+                // Add rank badge
+                let rankBadge = horseEl.querySelector('.rank-badge');
+                if (!rankBadge) {
+                    rankBadge = document.createElement('div');
+                    rankBadge.className = 'rank-badge';
+                    rankBadge.style.cssText = 'position:absolute;top:-25px;left:50%;transform:translateX(-50%);font-size:20px;font-weight:bold;color:gold;text-shadow:0 0 5px #000;z-index:100;';
+                    horseEl.appendChild(rankBadge);
+                }
+
+                // Show rank with medal emoji
+                const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+                rankBadge.innerText = medals[data.rank - 1] || `#${data.rank}`;
+
+                // Celebration animation on horse
+                horseEl.animate([
+                    { transform: 'scale(1.2) rotate(-5deg)' },
+                    { transform: 'scale(1.3) rotate(5deg)' },
+                    { transform: 'scale(1.2) rotate(-5deg)' },
+                    { transform: 'scale(1.2) rotate(0deg)' }
+                ], { duration: 500, iterations: 3 });
+            }
+
+            // Show rank announcement
+            const announcement = document.createElement('div');
+            announcement.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);font-size:36px;font-weight:bold;color:#FFD700;text-shadow:0 0 15px gold, 0 0 30px orange;z-index:2000;text-align:center;pointer-events:none;';
+            const medals = ['🥇', '🥈', '🥉'];
+            const medal = medals[data.rank - 1] || `第${data.rank}名`;
+            announcement.innerHTML = `${medal} ${data.player_name} 到達終點!`;
+            document.body.appendChild(announcement);
+
+            announcement.animate([
+                { opacity: 0, transform: 'translateX(-50%) scale(0.5)' },
+                { opacity: 1, transform: 'translateX(-50%) scale(1.2)' },
+                { opacity: 1, transform: 'translateX(-50%) scale(1)' }
+            ], { duration: 500, easing: 'ease-out' });
+
+            setTimeout(() => {
+                announcement.animate([
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ], { duration: 500 });
+                setTimeout(() => announcement.remove(), 500);
+            }, 3000);
+
+            // Play win sound for top 3
+            if (data.rank <= 3) {
+                playWinSound();
             }
         });
 

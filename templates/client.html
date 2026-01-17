@@ -324,15 +324,15 @@
             const timerEl = document.createElement('div');
             timerEl.style.cssText = 'font-size:40px;color:gold;margin-bottom:10px;';
             timerEl.id = 'quiz-timer';
-            timerEl.innerText = '⏱️ 5';
+            timerEl.innerText = '⏱️ 7';
             box.appendChild(timerEl);
 
-            // Start countdown
-            let timeLeft = 5;
+            // Start countdown (7 seconds)
+            let timeLeft = 7;
             const countdownInterval = setInterval(() => {
                 timeLeft--;
                 timerEl.innerText = '⏱️ ' + timeLeft;
-                if (timeLeft <= 2) timerEl.style.color = '#ff4444';
+                if (timeLeft <= 3) timerEl.style.color = '#ff4444';
             }, 1000);
 
             const questionEl = document.createElement('div');
@@ -372,7 +372,7 @@
                     document.body.appendChild(timeoutDiv);
                     setTimeout(() => timeoutDiv.remove(), 2000);
                 }
-            }, 5000);
+            }, 7000);  // 7 seconds timeout
         });
 
         function submitAnswer(answerIndex) {

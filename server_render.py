@@ -52,8 +52,8 @@ def bot_runner():
                 
                 # Simulate shake
                 intensity = random.randint(20, 50)
-                base_move = 0.0033  # Match player shake speed
-                bonus = (intensity / 3000.0)
+                base_move = 0.0165  # Match player shake speed (5x faster)
+                bonus = (intensity / 600.0)
                 move_amount = base_move + bonus
                 
                 player['progress'] = min(100, player['progress'] + move_amount)
@@ -308,19 +308,19 @@ def quiz_spawner():
         # Find new position of correct answer
         new_correct_index = shuffled_options.index(correct_answer_text)
         
-        # Set answering state (5 seconds to answer, blocks shaking)
-        target_player['answering_until'] = current_time + 5
+        # Set answering state (7 seconds to answer, blocks shaking)
+        target_player['answering_until'] = current_time + 7
         target_player['current_question_id'] = question['id']
         target_player['shuffled_answer'] = new_correct_index  # Store shuffled answer
         
-        print(f"Quiz sent to {target_player['name']}: Q{question['id']} (5s to answer)")
+        print(f"Quiz sent to {target_player['name']}: Q{question['id']} (7s to answer)")
         
         # Send question to specific player only (with shuffled options)
         socketio.emit('quiz_question', {
             'question_id': question['id'],
             'question': question['q'],
             'options': shuffled_options,  # Shuffled!
-            'timeout': 5  # Tell client about timeout
+            'timeout': 7  # Tell client about timeout (was 5)
         }, room=player_id)
         
         # Notify host that a question was sent
@@ -516,13 +516,11 @@ def on_shake(data):
             return  # Player is frozen, cannot move
         
         # Move horse
-        # BALANCED: Shake speed reduced to match tap speed (was 10x faster)
-        # Original values were causing shake to be way too fast
+        # SPEED ADJUSTED: Increased 5x from previous (user requested faster shaking)
         
-        base_move = 0.0033  # was 0.033, now 10x slower
-        bonus = (intensity / 3000.0)  # was 300.0, now 10x slower
-        # This balances shake with tap button speed
-        
+        base_move = 0.0165  # was 0.0033, now 5x faster
+        bonus = (intensity / 600.0)  # was 3000.0, now 5x faster
+        # This gives reasonable shake speed
         move_amount = base_move + bonus
         
         # Apply speed multiplier from items
@@ -539,6 +537,13 @@ def on_shake(data):
              # Calculate rank based on how many finished
              finished_count = sum(1 for p in PLAYERS.values() if p.get('finished'))
              PLAYERS[request.sid]['finish_order'] = finished_count
+             
+             # Broadcast player finished event with rank
+             emit('player_finished', {
+                 'player_id': request.sid,
+                 'player_name': PLAYERS[request.sid]['name'],
+                 'rank': finished_count
+             }, broadcast=True)
              
              # Check if ALL finished
              total_players = len(PLAYERS)
