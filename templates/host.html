@@ -651,17 +651,17 @@
         <div class="horse-clouds-container"
             style="position:fixed;bottom:0;left:0;right:0;height:25%;overflow:hidden;pointer-events:none;z-index:5;">
             <!-- Row 1 - Top of parking area -->
-            <div class="horse-cloud speed" style="animation:speed-cloud 8s linear infinite;top:10%;">🐴 馬到成功</div>
-            <div class="horse-cloud speed" style="animation:speed-cloud 7s linear infinite 2s;top:15%;">🎠 萬馬奔騰</div>
-            <div class="horse-cloud speed" style="animation:speed-cloud 6s linear infinite 4s;top:5%;">🏇 一馬當先</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 8s ease-in infinite;top:10%;">馬到成功</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 7s ease-in infinite 2s;top:15%;">萬馬奔騰</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 6s ease-in infinite 4s;top:5%;">一馬當先</div>
             <!-- Row 2 - Middle -->
-            <div class="horse-cloud speed" style="animation:speed-cloud 9s linear infinite 1s;top:40%;">🎪 龍馬精神</div>
-            <div class="horse-cloud speed" style="animation:speed-cloud 5s linear infinite 3s;top:45%;">🐎 馬年大吉</div>
-            <div class="horse-cloud speed" style="animation:speed-cloud 7s linear infinite 5s;top:35%;">🌟 駿馬揚蹄</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 9s ease-in infinite 1s;top:40%;">龍馬精神</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 5s ease-in infinite 3s;top:45%;">馬年大吉</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 7s ease-in infinite 5s;top:35%;">駿馬揚蹄</div>
             <!-- Row 3 - Bottom -->
-            <div class="horse-cloud speed" style="animation:speed-cloud 6s linear infinite 0.5s;top:70%;">🎆 快馬加鞭</div>
-            <div class="horse-cloud speed" style="animation:speed-cloud 8s linear infinite 2.5s;top:75%;">✨ 馬上有錢</div>
-            <div class="horse-cloud speed" style="animation:speed-cloud 5s linear infinite 4.5s;top:65%;">🎊 萬事如意</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 6s ease-in infinite 0.5s;top:70%;">快馬加鞭</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 8s ease-in infinite 2.5s;top:75%;">馬上有錢</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 5s ease-in infinite 4.5s;top:65%;">萬事如意</div>
         </div>
 
         <!-- Live Leaderboard (left side) -->
@@ -677,31 +677,49 @@
                 font-weight: bold;
                 color: #FFD700;
                 text-shadow: 0 0 5px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3);
-                background: linear-gradient(135deg, rgba(139, 0, 0, 0.8), rgba(80, 0, 0, 0.9));
-                padding: 6px 12px;
-                border-radius: 20px;
+                background: linear-gradient(135deg, rgba(139, 0, 0, 0.85), rgba(100, 20, 20, 0.9));
+                padding: 8px 20px 8px 15px;
+                border-radius: 25px 15px 15px 25px;
                 border: 2px solid gold;
                 position: absolute;
                 white-space: nowrap;
+                /* Horse-like shape with tail effect */
+                border-left: 4px solid #FFD700;
+                box-shadow: -5px 0 0 rgba(139, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+
+            .horse-cloud::before {
+                content: '🐴';
+                font-size: 18px;
+                margin-right: 5px;
             }
 
             @keyframes speed-cloud {
                 0% {
                     left: 110%;
                     opacity: 0;
+                    transform: scale(0.7);
+                }
+
+                10% {
+                    opacity: 1;
                     transform: scale(0.8);
                 }
 
-                5% {
-                    opacity: 1;
+                30% {
+                    transform: scale(0.9);
                 }
 
-                95% {
+                70% {
+                    transform: scale(1);
+                }
+
+                90% {
                     opacity: 1;
                 }
 
                 100% {
-                    left: -20%;
+                    left: -25%;
                     opacity: 0;
                     transform: scale(1.1);
                 }
@@ -1063,8 +1081,16 @@
         // Quiz sent - a question was sent to a player
         socket.on('quiz_sent', (data) => {
             console.log('Quiz sent to:', data);
+
+            // Player-specific colors
+            const playerColors = [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+                '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+            ];
+            const playerColor = playerColors[data.player_index % playerColors.length] || '#FFD700';
+
             const floatingText = document.createElement('div');
-            floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#FFD700;text-shadow:0 0 10px #FFD700;z-index:1000;text-align:center;pointer-events:none;';
+            floatingText.style.cssText = `position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:${playerColor};text-shadow:0 0 10px ${playerColor};z-index:1000;text-align:center;pointer-events:none;`;
             floatingText.innerHTML = `❓ ${data.player_name} 正在作答...`;
             document.body.appendChild(floatingText);
             floatingText.animate([

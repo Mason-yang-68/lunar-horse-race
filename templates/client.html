@@ -324,11 +324,11 @@
             const timerEl = document.createElement('div');
             timerEl.style.cssText = 'font-size:40px;color:gold;margin-bottom:10px;';
             timerEl.id = 'quiz-timer';
-            timerEl.innerText = '⏱️ 7';
+            timerEl.innerText = '⏱️ 10';
             box.appendChild(timerEl);
 
-            // Start countdown (7 seconds)
-            let timeLeft = 7;
+            // Start countdown (10 seconds)
+            let timeLeft = 10;
             const countdownInterval = setInterval(() => {
                 timeLeft--;
                 timerEl.innerText = '⏱️ ' + timeLeft;
@@ -372,7 +372,7 @@
                     document.body.appendChild(timeoutDiv);
                     setTimeout(() => timeoutDiv.remove(), 2000);
                 }
-            }, 7000);  // 7 seconds timeout
+            }, 10000);  // 10 seconds timeout
         });
 
         function submitAnswer(answerIndex) {

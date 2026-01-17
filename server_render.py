@@ -308,25 +308,28 @@ def quiz_spawner():
         # Find new position of correct answer
         new_correct_index = shuffled_options.index(correct_answer_text)
         
-        # Set answering state (7 seconds to answer, blocks shaking)
-        target_player['answering_until'] = current_time + 7
+        # Set answering state (10 seconds to answer, blocks shaking)
+        target_player['answering_until'] = current_time + 10
         target_player['current_question_id'] = question['id']
         target_player['shuffled_answer'] = new_correct_index  # Store shuffled answer
         
-        print(f"Quiz sent to {target_player['name']}: Q{question['id']} (7s to answer)")
+        print(f"Quiz sent to {target_player['name']}: Q{question['id']} (10s to answer)")
         
         # Send question to specific player only (with shuffled options)
         socketio.emit('quiz_question', {
             'question_id': question['id'],
             'question': question['q'],
             'options': shuffled_options,  # Shuffled!
-            'timeout': 7  # Tell client about timeout (was 5)
+            'timeout': 10  # Tell client about timeout
         }, room=player_id)
         
-        # Notify host that a question was sent
+        # Notify host that a question was sent (include player index for color)
+        player_ids = list(PLAYERS.keys())
+        player_index = player_ids.index(player_id) if player_id in player_ids else 0
         socketio.emit('quiz_sent', {
             'player_id': player_id,
             'player_name': target_player['name'],
+            'player_index': player_index,
             'question': question['q']
         }, namespace='/')
 
