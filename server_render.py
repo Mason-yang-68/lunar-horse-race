@@ -131,6 +131,45 @@ def on_join(data):
     emit('join_success', {'id': request.sid}, room=request.sid)
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)
 
+@socketio.on('rejoin_game')
+def on_rejoin(data):
+    """Handle player reconnection during racing"""
+    if GAME_STATE['status'] != 'RACING':
+        emit('rejoin_failed', {'message': '遊戲未進行中'})
+        return
+    
+    name = data.get('name', '')
+    if not name:
+        emit('rejoin_failed', {'message': '名稱錯誤'})
+        return
+    
+    # Find existing player by name
+    old_player = None
+    old_id = None
+    for pid, player in list(PLAYERS.items()):
+        if player['name'] == name:
+            old_player = player
+            old_id = pid
+            break
+    
+    if not old_player:
+        emit('rejoin_failed', {'message': '找不到玩家'})
+        return
+    
+    # Transfer player data to new session
+    new_id = request.sid
+    old_player['id'] = new_id
+    old_player['disconnected'] = False
+    
+    # Move player to new session ID
+    if old_id != new_id:
+        PLAYERS[new_id] = old_player
+        del PLAYERS[old_id]
+        print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}...")
+    
+    emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
+    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+
 @socketio.on('add_bots')
 def on_add_bots(data):
     """Add bot players for testing"""

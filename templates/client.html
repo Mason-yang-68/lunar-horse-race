@@ -245,10 +245,93 @@
     </div>
 
     <script>
-        const socket = io();
+        const socket = io({
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 10
+        });
         let myId = null;
         let myName = '';
         let myAvatar = 'horse1';
+        let isRacing = false;
+        let disconnectOverlay = null;
+
+        // Show disconnect overlay
+        function showDisconnectOverlay() {
+            if (disconnectOverlay) return;
+            disconnectOverlay = document.createElement('div');
+            disconnectOverlay.id = 'disconnect-overlay';
+            disconnectOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-size:24px;';
+            disconnectOverlay.innerHTML = `
+                <div style="font-size:60px;margin-bottom:20px;">📡</div>
+                <div>連線中斷...</div>
+                <div style="font-size:16px;margin-top:10px;color:#FFD700;">正在重新連線</div>
+                <div style="margin-top:20px;"><div class="spinner" style="width:40px;height:40px;border:4px solid #333;border-top:4px solid gold;border-radius:50%;animation:spin 1s linear infinite;"></div></div>
+                <style>@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
+            `;
+            document.body.appendChild(disconnectOverlay);
+        }
+
+        // Hide disconnect overlay
+        function hideDisconnectOverlay() {
+            if (disconnectOverlay) {
+                disconnectOverlay.remove();
+                disconnectOverlay = null;
+            }
+        }
+
+        // Socket disconnect handler
+        socket.on('disconnect', () => {
+            console.log('Socket disconnected!');
+            if (isRacing) {
+                showDisconnectOverlay();
+            }
+        });
+
+        // Socket reconnect handler
+        socket.on('connect', () => {
+            console.log('Socket connected/reconnected');
+            hideDisconnectOverlay();
+
+            // If we were in a game, try to rejoin
+            if (myName && isRacing) {
+                console.log('Attempting to rejoin game as:', myName);
+                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar });
+            }
+        });
+
+        // Rejoin success
+        socket.on('rejoin_success', (data) => {
+            console.log('Rejoin successful!', data);
+            myId = data.id;
+            hideDisconnectOverlay();
+
+            // Show success message
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,128,0,0.9);color:white;padding:20px 40px;border-radius:15px;font-size:20px;z-index:9999;';
+            msg.innerText = '✅ 已重新連線!';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 2000);
+        });
+
+        // Rejoin failed (game not in progress or player not found)
+        socket.on('rejoin_failed', (data) => {
+            console.log('Rejoin failed:', data);
+            hideDisconnectOverlay();
+            alert('無法重新加入遊戲: ' + (data.message || '遊戲已結束'));
+        });
+
+        // Page visibility change (iOS background detection)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && isRacing) {
+                console.log('Page became visible, checking connection...');
+                if (!socket.connected) {
+                    showDisconnectOverlay();
+                    socket.connect();
+                }
+            }
+        });
 
         socket.on('join_success', (data) => {
             myId = data.id;
@@ -277,6 +360,8 @@
             document.getElementById('wait-screen').style.display = 'none';
             document.getElementById('race-screen').style.display = 'block';
 
+            isRacing = true;  // Mark that we're in a race for reconnection
+
             // Vibrate to signal start
             if (navigator.vibrate) navigator.vibrate(200);
         });
@@ -284,6 +369,7 @@
         socket.on('game_results', (results) => {
             document.getElementById('race-screen').style.display = 'none';
             document.getElementById('result-screen').style.display = 'block';
+            isRacing = false;  // Game is over
 
             const myResult = results.find(r => r.name === myName);
             if (myResult) {
