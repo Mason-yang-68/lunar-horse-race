@@ -433,10 +433,10 @@ def on_quiz_answer(data):
         player['quiz_cooldown_until'] = current_time + 2  # Was 5, now 2
         print(f"{player['name']} answered CORRECTLY! (+5%, cooldown 2s)")
     else:
-        # Wrong: Freeze for 2 seconds + 7 second cooldown before next question
-        player['freeze_until'] = current_time + 2  # Was 5, now 2
-        player['quiz_cooldown_until'] = current_time + 7  # Was 10, now 7
-        print(f"{player['name']} answered WRONG! (frozen 2s, cooldown 7s)")
+        # Wrong: Freeze for 5 seconds + 7 second cooldown before next question
+        player['freeze_until'] = current_time + 5  # Changed to 5 seconds
+        player['quiz_cooldown_until'] = current_time + 7
+        print(f"{player['name']} answered WRONG! (frozen 5s, cooldown 7s)")
     
     # Send result to the player
     socketio.emit('quiz_result', {

@@ -404,16 +404,16 @@
 
                 const resultDiv = document.createElement('div');
                 resultDiv.style.cssText = 'position:fixed;top:30%;left:50%;transform:translateX(-50%);font-size:48px;color:#FF0000;text-shadow:0 0 20px #f00;z-index:9999;text-align:center;';
-                resultDiv.innerHTML = '❌ 答錯了!<br><span style="font-size:28px">凍結 2 秒!</span>';
+                resultDiv.innerHTML = '❌ 答錯了!<br><span style="font-size:28px">凍結 5 秒!</span>';
                 document.body.appendChild(resultDiv);
                 setTimeout(() => resultDiv.remove(), 2000);
 
-                // Show freeze indicator for 2 seconds
+                // Show freeze indicator for 5 seconds
                 const freezeEl = document.createElement('div');
                 freezeEl.className = 'freeze-indicator';
                 freezeEl.innerText = '❄️';
                 document.body.appendChild(freezeEl);
-                setTimeout(() => freezeEl.remove(), 2000);
+                setTimeout(() => freezeEl.remove(), 5000);
             }
         });
 

@@ -647,46 +647,56 @@
                 <!-- Race horses will be positioned here -->
             </div>
         </div>
-        <!-- Horse-shaped floating greetings clouds -->
+        <!-- Horse-shaped floating greetings clouds - positioned at right (parking area) -->
         <div class="horse-clouds-container"
-            style="position:fixed;bottom:0;left:0;right:0;height:80px;overflow:hidden;pointer-events:none;z-index:5;">
-            <div class="horse-cloud"
-                style="position:absolute;bottom:10px;left:5%;animation:float-cloud 8s ease-in-out infinite;">🐴 馬到成功
-            </div>
-            <div class="horse-cloud"
-                style="position:absolute;bottom:20px;left:25%;animation:float-cloud 7s ease-in-out infinite 1s;">🎠 萬馬奔騰
-            </div>
-            <div class="horse-cloud"
-                style="position:absolute;bottom:15px;left:45%;animation:float-cloud 9s ease-in-out infinite 2s;">🏇 一馬當先
-            </div>
-            <div class="horse-cloud"
-                style="position:absolute;bottom:25px;left:65%;animation:float-cloud 6s ease-in-out infinite 0.5s;">🎪
-                龍馬精神</div>
-            <div class="horse-cloud"
-                style="position:absolute;bottom:10px;left:85%;animation:float-cloud 8s ease-in-out infinite 1.5s;">🐎
-                馬年大吉</div>
+            style="position:fixed;top:60%;right:0;width:200px;height:200px;overflow:hidden;pointer-events:none;z-index:5;">
+            <div class="horse-cloud moving" style="animation:slide-cloud 6s linear infinite;">🐴 馬到成功</div>
+            <div class="horse-cloud moving" style="animation:slide-cloud 5s linear infinite 1s;">🎠 萬馬奔騰</div>
+            <div class="horse-cloud moving" style="animation:slide-cloud 7s linear infinite 2s;">🏇 一馬當先</div>
+            <div class="horse-cloud moving" style="animation:slide-cloud 4s linear infinite 3s;">🎪 龍馬精神</div>
+            <div class="horse-cloud moving" style="animation:slide-cloud 5.5s linear infinite 4s;">🐎 馬年大吉</div>
         </div>
+
+        <!-- Live Leaderboard (left side) -->
+        <div id="live-leaderboard"
+            style="position:fixed;top:15%;left:10px;width:180px;background:linear-gradient(135deg,rgba(139,0,0,0.9),rgba(80,0,0,0.95));border:3px solid gold;border-radius:15px;padding:10px;z-index:100;display:none;">
+            <div style="text-align:center;font-size:16px;color:gold;font-weight:bold;margin-bottom:8px;">🏆 即時榜單</div>
+            <div id="leaderboard-entries" style="color:white;font-size:14px;"></div>
+        </div>
+
         <style>
             .horse-cloud {
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: bold;
                 color: #FFD700;
                 text-shadow: 0 0 5px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3);
                 background: linear-gradient(135deg, rgba(139, 0, 0, 0.8), rgba(80, 0, 0, 0.9));
-                padding: 8px 15px;
+                padding: 6px 12px;
                 border-radius: 20px;
                 border: 2px solid gold;
+                position: absolute;
+                white-space: nowrap;
             }
 
-            @keyframes float-cloud {
-
-                0%,
-                100% {
-                    transform: translateY(0) rotate(-2deg);
+            @keyframes slide-cloud {
+                0% {
+                    right: -150px;
+                    top: 0;
+                    opacity: 0;
                 }
 
-                50% {
-                    transform: translateY(-10px) rotate(2deg);
+                10% {
+                    opacity: 1;
+                }
+
+                90% {
+                    opacity: 1;
+                }
+
+                100% {
+                    right: 220px;
+                    top: 180px;
+                    opacity: 0;
                 }
             }
         </style>
@@ -1009,6 +1019,38 @@
             if (data.rank <= 3) {
                 playWinSound();
             }
+
+            // Update live leaderboard on left side
+            const leaderboard = document.getElementById('live-leaderboard');
+            const entries = document.getElementById('leaderboard-entries');
+            if (leaderboard && entries) {
+                leaderboard.style.display = 'block';
+
+                // Get prize amounts from input fields
+                const prizes = [
+                    parseInt(document.getElementById('prize1').value) || 0,
+                    parseInt(document.getElementById('prize2').value) || 0,
+                    parseInt(document.getElementById('prize3').value) || 0
+                ];
+                const defaultPrize = 600; // Non-top-3 prize
+                const prize = data.rank <= 3 ? prizes[data.rank - 1] : defaultPrize;
+
+                // Medal emojis for display
+                const medalEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+                const medalIcon = medalEmojis[data.rank - 1] || `#${data.rank}`;
+
+                // Create entry
+                const entry = document.createElement('div');
+                entry.style.cssText = 'padding:5px 0;border-bottom:1px solid rgba(255,215,0,0.3);';
+                entry.innerHTML = `${medalIcon} ${data.player_name} <span style="color:gold;float:right;">$${prize}</span>`;
+                entries.appendChild(entry);
+
+                // Animate new entry
+                entry.animate([
+                    { backgroundColor: 'rgba(255,215,0,0.3)', transform: 'translateX(-20px)' },
+                    { backgroundColor: 'transparent', transform: 'translateX(0)' }
+                ], { duration: 500 });
+            }
         });
 
         // Quiz sent - a question was sent to a player
@@ -1043,10 +1085,10 @@
             } else {
                 floatingText.style.color = '#FF0000';
                 floatingText.style.textShadow = '0 0 10px #f00';
-                floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 2 秒!`;
+                floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 5 秒!`;
                 if (horseEl) {
                     horseEl.classList.add('frozen');
-                    setTimeout(() => horseEl.classList.remove('frozen'), 2000);
+                    setTimeout(() => horseEl.classList.remove('frozen'), 5000);
                 }
                 playWrongSound();
             }
