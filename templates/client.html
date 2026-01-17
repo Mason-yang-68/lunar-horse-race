@@ -269,6 +269,35 @@
     </div>
 
     <script>
+        // ========= PREVENT iOS SHAKE TO UNDO =========
+        // Block the beforeinput event that triggers undo
+        document.addEventListener('beforeinput', function (e) {
+            if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }, true);
+
+        // Block keyboard undo shortcuts
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // Clear any undo history on page load and visibility change
+        function clearUndoHistory() {
+            // Remove focus from any inputs to clear undo stack
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+        }
+        document.addEventListener('visibilitychange', clearUndoHistory);
+        window.addEventListener('load', clearUndoHistory);
+        // =========================================
+
         const socket = io({
             reconnection: true,
             reconnectionDelay: 1000,
