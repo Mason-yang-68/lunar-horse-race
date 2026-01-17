@@ -542,15 +542,11 @@ def on_shake(data):
     if GAME_STATE['status'] != 'RACING':
         return
     
-    # User requested LONGER RACE (~2 mins)
-    # Assumed shake rate: 2-3 shakes/sec ~ 150-180 shakes/min
-    # 2 mins ~ 300-360 shakes
-    # Progress 100 max.
-    # Move amount ~ 100 / 300 ~ 0.33 per shake.
-    
     intensity = data.get('intensity', 10)
     
-    if request.sid in PLAYERS and not PLAYERS[request.sid].get('finished'):
+    if request.sid in PLAYERS:
+        if PLAYERS[request.sid].get('finished'):
+            return  # Already finished
         import time
         
         player = PLAYERS[request.sid]

@@ -231,6 +231,9 @@
                 touch-action: manipulation;
             ">TAP! TAP!</button>
             <p style="color: white; opacity: 0.7; margin-top: 15px;">(用力搖晃手機或點擊按鈕!)</p>
+            <!-- Debug display -->
+            <div id="shake-debug" style="color: #00FF00; font-size: 14px; margin-top: 10px; font-family: monospace;">
+            </div>
         </div>
     </div>
 
@@ -588,9 +591,24 @@
         }
 
         // --- Manual Fallback ---
+        let shakeCount = 0;
         function manualShake() {
+            // Check if socket is connected
+            if (!socket.connected) {
+                console.log('Socket NOT connected! Trying to reconnect...');
+                socket.connect();
+                return;
+            }
+
             // Emulate a stronger tap (2x speed of before)
             socket.emit('shake_event', { intensity: 40 });
+            shakeCount++;
+
+            // Show debug counter briefly (for testing)
+            const debugEl = document.getElementById('shake-debug');
+            if (debugEl) {
+                debugEl.innerText = `搖晃: ${shakeCount}`;
+            }
 
             // Haptic and Visual feedback
             if (navigator.vibrate) navigator.vibrate(15);
