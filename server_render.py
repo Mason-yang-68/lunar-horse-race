@@ -544,67 +544,68 @@ def on_shake(data):
     
     intensity = data.get('intensity', 10)
     
-    if request.sid in PLAYERS:
-        if PLAYERS[request.sid].get('finished'):
-            return  # Already finished
-        import time
+    # Check if player exists
+    if request.sid not in PLAYERS:
+        # DEBUG: Player not found - log all current player IDs
+        print(f"SHAKE from UNKNOWN sid: {request.sid[:8]}...")
+        print(f"Current PLAYERS keys: {[k[:8] + '...' for k in PLAYERS.keys()]}")
+        return
+    
+    if PLAYERS[request.sid].get('finished'):
+        return  # Already finished
+    
+    import time
+    player = PLAYERS[request.sid]
+    current_time = time.time()
+    
+    # Check if countdown is still in progress
+    race_start_time = GAME_STATE.get('race_start_time', 0)
+    if current_time < race_start_time:
+        return  # Countdown not finished, cannot move yet
+    
+    # Check if player is answering a question (cannot shake)
+    if player.get('answering_until', 0) > current_time:
+        return  # Player is answering, cannot move
+    
+    # Check if player is frozen (answered wrong)
+    if player.get('freeze_until', 0) > current_time:
+        return  # Player is frozen, cannot move
+    
+    # Move horse
+    base_move = 0.0165
+    bonus = (intensity / 600.0)
+    move_amount = base_move + bonus
+    
+    # Apply speed multiplier from items
+    speed_multiplier = get_speed_multiplier(request.sid)
+    move_amount *= speed_multiplier
+    
+    PLAYERS[request.sid]['progress'] += move_amount
+    
+    if PLAYERS[request.sid]['progress'] >= 100:
+        PLAYERS[request.sid]['progress'] = 100
+        PLAYERS[request.sid]['finished'] = True
         
-        player = PLAYERS[request.sid]
-        current_time = time.time()
+        # Calculate rank based on how many finished
+        finished_count = sum(1 for p in PLAYERS.values() if p.get('finished'))
+        PLAYERS[request.sid]['finish_order'] = finished_count
         
-        # Check if countdown is still in progress
-        race_start_time = GAME_STATE.get('race_start_time', 0)
-        if current_time < race_start_time:
-            return  # Countdown not finished, cannot move yet
-        
-        # Check if player is answering a question (cannot shake)
-        if player.get('answering_until', 0) > current_time:
-            return  # Player is answering, cannot move
-        
-        # Check if player is frozen (answered wrong)
-        if player.get('freeze_until', 0) > current_time:
-            return  # Player is frozen, cannot move
-        
-        # Move horse
-        # SPEED ADJUSTED: Increased 5x from previous (user requested faster shaking)
-        
-        base_move = 0.0165  # was 0.0033, now 5x faster
-        bonus = (intensity / 600.0)  # was 3000.0, now 5x faster
-        # This gives reasonable shake speed
-        move_amount = base_move + bonus
-        
-        # Apply speed multiplier from items
-        speed_multiplier = get_speed_multiplier(request.sid)
-        move_amount *= speed_multiplier
-        
-        PLAYERS[request.sid]['progress'] += move_amount
-        
-        
-        if PLAYERS[request.sid]['progress'] >= 100:
-             PLAYERS[request.sid]['progress'] = 100
-             PLAYERS[request.sid]['finished'] = True
-             
-             # Calculate rank based on how many finished
-             finished_count = sum(1 for p in PLAYERS.values() if p.get('finished'))
-             PLAYERS[request.sid]['finish_order'] = finished_count
-             
-             # Broadcast player finished event with rank
-             emit('player_finished', {
-                 'player_id': request.sid,
-                 'player_name': PLAYERS[request.sid]['name'],
-                 'rank': finished_count
-             }, broadcast=True)
-             
-             # Check if ALL finished
-             total_players = len(PLAYERS)
-             if finished_count >= total_players:
-                 # Auto-Finish Logic
-                 on_calculate_results()
-        
-        emit('player_update', {
-            'id': request.sid, 
-            'progress': PLAYERS[request.sid]['progress']
+        # Broadcast player finished event with rank
+        emit('player_finished', {
+            'player_id': request.sid,
+            'player_name': PLAYERS[request.sid]['name'],
+            'rank': finished_count
         }, broadcast=True)
+        
+        # Check if ALL finished
+        total_players = len(PLAYERS)
+        if finished_count >= total_players:
+            on_calculate_results()
+    
+    emit('player_update', {
+        'id': request.sid, 
+        'progress': PLAYERS[request.sid]['progress']
+    }, broadcast=True)
 
 @socketio.on('game_completed')
 def on_game_completed(data):
