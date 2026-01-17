@@ -100,10 +100,10 @@ def on_connect():
 def on_disconnect():
     if request.sid in PLAYERS:
         player = PLAYERS[request.sid]
-        # Keep finished players during racing (iOS may disconnect when screen locks)
-        if GAME_STATE['status'] == 'RACING' and player.get('finished'):
-            print(f"Client disconnected but keeping finished player: {player['name']}")
-            # Mark as disconnected but don't remove
+        # Keep ALL players during racing (iOS may disconnect when screen locks)
+        if GAME_STATE['status'] == 'RACING':
+            print(f"Client disconnected but keeping player for rejoin: {player['name']}")
+            # Mark as disconnected but don't remove - they can rejoin!
             player['disconnected'] = True
         else:
             del PLAYERS[request.sid]
