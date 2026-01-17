@@ -1057,7 +1057,7 @@
                     parseInt(document.getElementById('prize2').value) || 0,
                     parseInt(document.getElementById('prize3').value) || 0
                 ];
-                const defaultPrize = 600; // Non-top-3 prize
+                const defaultPrize = 200; // Non-top-3 prize
                 const prize = data.rank <= 3 ? prizes[data.rank - 1] : defaultPrize;
 
                 // Medal emojis for display
