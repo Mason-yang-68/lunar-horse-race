@@ -105,6 +105,11 @@ def on_disconnect():
             print(f"Client disconnected but keeping player for rejoin: {player['name']}")
             # Mark as disconnected but don't remove - they can rejoin!
             player['disconnected'] = True
+            # Notify host about disconnection
+            emit('player_disconnected', {
+                'player_id': request.sid,
+                'player_name': player['name']
+            }, broadcast=True)
         else:
             del PLAYERS[request.sid]
             emit('update_player_list', list(PLAYERS.values()), broadcast=True)
@@ -173,6 +178,11 @@ def on_rejoin(data):
         print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}... (states cleared)")
     
     emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
+    # Notify host about reconnection
+    emit('player_reconnected', {
+        'player_id': new_id,
+        'player_name': name
+    }, broadcast=True)
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)
 
 @socketio.on('add_bots')

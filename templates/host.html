@@ -1134,6 +1134,57 @@
             setTimeout(() => floatingText.remove(), 2500);
         });
 
+        // Player disconnected during race
+        socket.on('player_disconnected', (data) => {
+            console.log('Player disconnected:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            if (horseEl) {
+                // Add disconnect indicator
+                horseEl.style.opacity = '0.5';
+                horseEl.style.filter = 'grayscale(100%)';
+
+                let dcBadge = horseEl.querySelector('.dc-badge');
+                if (!dcBadge) {
+                    dcBadge = document.createElement('div');
+                    dcBadge.className = 'dc-badge';
+                    dcBadge.style.cssText = 'position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:16px;background:rgba(255,0,0,0.8);color:white;padding:2px 6px;border-radius:5px;';
+                    dcBadge.innerText = '📡 離線';
+                    horseEl.appendChild(dcBadge);
+                }
+            }
+
+            // Show notification
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:5%;left:50%;transform:translateX(-50%);font-size:18px;color:#FF6B6B;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:10px;z-index:9999;';
+            msg.innerHTML = `📡 ${data.player_name} 已離線`;
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+        });
+
+        // Player reconnected
+        socket.on('player_reconnected', (data) => {
+            console.log('Player reconnected:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            if (horseEl) {
+                // Remove disconnect indicator
+                horseEl.style.opacity = '1';
+                horseEl.style.filter = '';
+                const dcBadge = horseEl.querySelector('.dc-badge');
+                if (dcBadge) dcBadge.remove();
+            }
+
+            // Show notification
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:5%;left:50%;transform:translateX(-50%);font-size:18px;color:#00FF00;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:10px;z-index:9999;';
+            msg.innerHTML = `✅ ${data.player_name} 已重新連線`;
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+        });
+
         // Quiz timeout - player didn't answer in time
         socket.on('quiz_timeout_notify', (data) => {
             console.log('Quiz timeout:', data);
@@ -1374,6 +1425,14 @@
         });
 
         function startRace() {
+            // Check if there are any players
+            const playerContainer = document.getElementById('oval-track');
+            const players = playerContainer ? playerContainer.children.length : 0;
+            if (players === 0) {
+                alert('⚠️ 沒有玩家加入！請等待至少一位玩家掃碼加入後再開始比賽。');
+                return;
+            }
+
             const prize1 = parseInt(document.getElementById('prize1').value) || 0;
             const prize2 = parseInt(document.getElementById('prize2').value) || 0;
             const prize3 = parseInt(document.getElementById('prize3').value) || 0;
