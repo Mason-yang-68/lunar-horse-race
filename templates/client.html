@@ -499,8 +499,8 @@
 
         // --- Manual Fallback ---
         function manualShake() {
-            // Emulate a medium-strong shake
-            socket.emit('shake_event', { intensity: 20 });
+            // Emulate a stronger tap (2x speed of before)
+            socket.emit('shake_event', { intensity: 40 });
 
             // Haptic and Visual feedback
             if (navigator.vibrate) navigator.vibrate(15);

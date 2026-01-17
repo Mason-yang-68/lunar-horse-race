@@ -64,6 +64,13 @@ def bot_runner():
                     finished_count = sum(1 for p in PLAYERS.values() if p.get('finished'))
                     player['finish_order'] = finished_count
                     
+                    # Emit player_finished event for leaderboard
+                    socketio.emit('player_finished', {
+                        'player_id': bot_id,
+                        'player_name': player['name'],
+                        'rank': finished_count
+                    })
+                    
                     if finished_count >= len(PLAYERS):
                         # All finished
                         from server_render import on_calculate_results
