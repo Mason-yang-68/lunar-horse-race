@@ -161,11 +161,16 @@ def on_rejoin(data):
     old_player['id'] = new_id
     old_player['disconnected'] = False
     
+    # IMPORTANT: Clear any blocking states so player can move immediately
+    old_player['freeze_until'] = 0
+    old_player['answering_until'] = 0
+    old_player['quiz_cooldown_until'] = 0
+    
     # Move player to new session ID
     if old_id != new_id:
         PLAYERS[new_id] = old_player
         del PLAYERS[old_id]
-        print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}...")
+        print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}... (states cleared)")
     
     emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)
@@ -477,10 +482,10 @@ def on_quiz_answer(data):
     player['shuffled_answer'] = None  # Clear after use
     
     if is_correct:
-        # Correct: Move forward 5% instantly (no speed boost) + 5 second cooldown
+        # Correct: Move forward 5% instantly + 3 second cooldown
         player['progress'] = min(100, player['progress'] + 5)
-        player['quiz_cooldown_until'] = current_time + 2  # Was 5, now 2
-        print(f"{player['name']} answered CORRECTLY! (+5%, cooldown 2s)")
+        player['quiz_cooldown_until'] = current_time + 3  # Changed to 3s
+        print(f"{player['name']} answered CORRECTLY! (+5%, cooldown 3s)")
     else:
         # Wrong: Freeze for 5 seconds + 7 second cooldown before next question
         player['freeze_until'] = current_time + 5  # Changed to 5 seconds
