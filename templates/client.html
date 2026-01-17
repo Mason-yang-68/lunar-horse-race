@@ -302,10 +302,14 @@
         });
 
         // Rejoin success
+        // Rejoin success
         socket.on('rejoin_success', (data) => {
             console.log('Rejoin successful!', data);
             myId = data.id;
             hideDisconnectOverlay();
+
+            // IMPORTANT: Restart motion listener (iOS suspends it in background)
+            startListening();
 
             // Show success message
             const msg = document.createElement('div');
