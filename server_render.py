@@ -52,8 +52,8 @@ def bot_runner():
                 
                 # Simulate shake
                 intensity = random.randint(20, 50)
-                base_move = 0.033
-                bonus = (intensity / 300.0)
+                base_move = 0.0033  # Match player shake speed
+                bonus = (intensity / 3000.0)
                 move_amount = base_move + bonus
                 
                 player['progress'] = min(100, player['progress'] + move_amount)
@@ -92,8 +92,15 @@ def on_connect():
 @socketio.on('disconnect')
 def on_disconnect():
     if request.sid in PLAYERS:
-        del PLAYERS[request.sid]
-        emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+        player = PLAYERS[request.sid]
+        # Keep finished players during racing (iOS may disconnect when screen locks)
+        if GAME_STATE['status'] == 'RACING' and player.get('finished'):
+            print(f"Client disconnected but keeping finished player: {player['name']}")
+            # Mark as disconnected but don't remove
+            player['disconnected'] = True
+        else:
+            del PLAYERS[request.sid]
+            emit('update_player_list', list(PLAYERS.values()), broadcast=True)
     print(f"Client disconnected: {request.sid}")
 
 @socketio.on('join_game')
@@ -250,7 +257,12 @@ def quiz_spawner():
     """Background task to send quiz questions to random players during race"""
     import time
     while GAME_STATE['status'] == 'RACING':
-        eventlet.sleep(random.uniform(6, 10))  # Question every 6-10 seconds
+        # Dynamic interval based on player count: more players = faster questions
+        # With 1-2 players: 4-6s, with 10 players: ~1.2-2s
+        player_count = max(1, len(PLAYERS))
+        base_interval = 4.0 / (player_count ** 0.5)  # Scale with sqrt of players
+        interval = random.uniform(base_interval, base_interval * 1.5)
+        eventlet.sleep(max(1.0, interval))  # Minimum 1 second between questions
         if GAME_STATE['status'] != 'RACING':
             break
         
@@ -504,13 +516,12 @@ def on_shake(data):
             return  # Player is frozen, cannot move
         
         # Move horse
-        # RACE TIME x3 LONGER
-        # Original: base_move = 0.1, bonus = intensity / 100
-        # New: divide everything by 3
+        # BALANCED: Shake speed reduced to match tap speed (was 10x faster)
+        # Original values were causing shake to be way too fast
         
-        base_move = 0.033  # was 0.1
-        bonus = (intensity / 300.0)  # was 100.0
-        # This makes race approximately 3x longer
+        base_move = 0.0033  # was 0.033, now 10x slower
+        bonus = (intensity / 3000.0)  # was 300.0, now 10x slower
+        # This balances shake with tap button speed
         
         move_amount = base_move + bonus
         
