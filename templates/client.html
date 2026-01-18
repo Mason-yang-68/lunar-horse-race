@@ -407,7 +407,8 @@
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: 10
+            reconnectionAttempts: Infinity, // Keep trying forever
+            timeout: 20000 // Connection timeout
         });
         let myId = null;
         let myName = '';
@@ -416,53 +417,38 @@
         let isWaiting = false;  // Track waiting state for reconnection
         let disconnectOverlay = null;
 
-        // Show disconnect overlay
-        function showDisconnectOverlay() {
-            if (disconnectOverlay) return;
-            disconnectOverlay = document.createElement('div');
-            disconnectOverlay.id = 'disconnect-overlay';
-            disconnectOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-size:24px;';
+        // Show disconnect overlay with reason
+        function showDisconnectOverlay(reason = '連線中斷...') {
+            if (!disconnectOverlay) {
+                disconnectOverlay = document.createElement('div');
+                disconnectOverlay.id = 'disconnect-overlay';
+                disconnectOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-size:24px;';
+                document.body.appendChild(disconnectOverlay);
+            }
+
             disconnectOverlay.innerHTML = `
                 <div style="font-size:60px;margin-bottom:20px;">📡</div>
-                <div>連線中斷...</div>
-                <div style="font-size:16px;margin-top:10px;color:#FFD700;">正在重新連線</div>
+                <div>${reason}</div>
+                <div style="font-size:16px;margin-top:10px;color:#FFD700;">正在嘗試重新連線...</div>
                 <div style="margin-top:20px;"><div class="spinner" style="width:40px;height:40px;border:4px solid #333;border-top:4px solid gold;border-radius:50%;animation:spin 1s linear infinite;"></div></div>
+                <div style="margin-top:30px;">
+                    <button onclick="location.reload()" style="padding:10px 20px;font-size:16px;background:#333;color:white;border:1px solid #666;border-radius:5px;cursor:pointer;">手動重新整理</button>
+                </div>
                 <style>@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
             `;
-            document.body.appendChild(disconnectOverlay);
+            disconnectOverlay.style.display = 'flex';
         }
 
         // Hide disconnect overlay
         function hideDisconnectOverlay() {
             if (disconnectOverlay) {
-                disconnectOverlay.remove();
-                disconnectOverlay = null;
+                disconnectOverlay.style.display = 'none';
             }
         }
 
-        // Socket disconnect handler
-        socket.on('disconnect', () => {
-            console.log('Socket disconnected!');
-            if (isRacing || isWaiting) {
-                showDisconnectOverlay();
-            }
-        });
-
-        // Socket reconnect handler
         socket.on('connect', () => {
-            console.log('Socket connected/reconnected');
-            hideDisconnectOverlay();
-
-            // If we were in a game (racing), try to rejoin
-            if (myName && isRacing) {
-                console.log('Attempting to rejoin game as:', myName);
-                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar });
-            }
-            // If we were waiting, try to rejoin waiting
-            else if (myName && isWaiting) {
-                console.log('Attempting to rejoin waiting as:', myName);
-                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar });
-            }
+            socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar });
+        }
         });
 
         // Rejoin success during racing

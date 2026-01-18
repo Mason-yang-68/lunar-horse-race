@@ -747,8 +747,9 @@
             z-index: 10;
         }
 
-        /* Hide crown if dizzy/stunned to avoid conflict */
-        .track-player.dizzy.is-leader::after {
+        /* Hide crown if ANY status effect is active (using .has-effect class) */
+        /* This prevents overlap with Dizzy ? , Boost 🚀, etc. */
+        .track-player.has-effect.is-leader::after {
             display: none;
         }
 
@@ -1654,8 +1655,8 @@
 
                 // Add dizzy effect 😵 instead of frozen ❄️
                 if (horseEl) {
-                    horseEl.classList.add('dizzy');
-                    setTimeout(() => horseEl.classList.remove('dizzy'), 5000);
+                    horseEl.classList.add('dizzy', 'has-effect');
+                    setTimeout(() => horseEl.classList.remove('dizzy', 'has-effect'), 5000);
                 }
                 playWrongSound();
             }
@@ -1899,10 +1900,12 @@
             console.log('showEffectOnHorse called:', effectType);
 
             // Remove any existing effect classes
-            horseEl.classList.remove('boosted', 'slowed', 'dodging');
+            horseEl.classList.remove('boosted', 'slowed', 'dodging', 'has-effect');
 
             // Add the appropriate effect class
             const isFood = effectType === 'food';
+            horseEl.classList.add('has-effect'); // Mark as having an effect to hide crown
+
             if (isFood) {
                 horseEl.classList.add('boosted');
                 console.log('Added boosted class');
