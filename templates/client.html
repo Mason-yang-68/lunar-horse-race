@@ -599,6 +599,56 @@
             }
         });
 
+        // Quiz alert sound (using Web Audio API for better iOS compatibility)
+        let audioContext = null;
+        function playQuizAlertSound() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // Play a "ding" alert sound
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Ding sound: high frequency beeps
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime);  // A5 note
+                oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1);  // Higher
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.2);  // Back
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+
+                console.log('Quiz alert sound played');
+            } catch (e) {
+                console.log('Audio play failed:', e);
+            }
+        }
+
+        // Screen flash effect
+        function flashScreen() {
+            const flash = document.createElement('div');
+            flash.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,215,0,0.6);z-index:99998;pointer-events:none;';
+            document.body.appendChild(flash);
+
+            // Flash animation: 3 quick flashes
+            let count = 0;
+            const interval = setInterval(() => {
+                flash.style.opacity = flash.style.opacity === '0' ? '1' : '0';
+                count++;
+                if (count >= 6) {  // 3 flashes (on-off-on-off-on-off)
+                    clearInterval(interval);
+                    flash.remove();
+                }
+            }, 100);
+        }
+
         // Quiz question received
         let currentQuestionId = null;
         let quizTimeoutHandle = null;
@@ -606,7 +656,14 @@
         socket.on('quiz_question', (data) => {
             currentQuestionId = data.question_id;
 
-            // Vibrate to alert user (strong pattern)
+            // === QUIZ ALERT EFFECTS ===
+            // 1. Play alert sound (works on all platforms)
+            playQuizAlertSound();
+
+            // 2. Screen flash effect (visual alert)
+            flashScreen();
+
+            // 3. Vibration (Android and some other platforms)
             vibrate([200, 100, 200, 100, 200]);
 
             // Create quiz overlay
