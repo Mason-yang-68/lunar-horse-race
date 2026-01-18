@@ -41,7 +41,7 @@ def bot_runner():
                     continue
                 if player.get('answering_until', 0) > current_time:
                     # Bot auto-answers randomly
-                    if random.random() < 0.5:  # 50% chance correct
+                    if random.random() < random.uniform(0.5, 0.9):  # Random 50%-90% chance correct
                         player['progress'] = min(100, player['progress'] + 5)
                         player['quiz_cooldown_until'] = current_time + 2
                     else:
@@ -90,6 +90,10 @@ def index():
 def play():
     return render_template('client.html')
 
+@app.route('/tutorial')
+def tutorial():
+    return render_template('tutorial.html')
+
 # --- Socket Events ---
 
 @socketio.on('connect')
@@ -100,8 +104,8 @@ def on_connect():
 def on_disconnect():
     if request.sid in PLAYERS:
         player = PLAYERS[request.sid]
-        # Keep ALL players during racing (iOS may disconnect when screen locks)
-        if GAME_STATE['status'] == 'RACING':
+        # Keep ALL players during racing OR waiting (iOS may disconnect when screen locks)
+        if GAME_STATE['status'] in ['RACING', 'WAITING']:
             print(f"Client disconnected but keeping player for rejoin: {player['name']}")
             # Mark as disconnected but don't remove - they can rejoin!
             player['disconnected'] = True
@@ -114,6 +118,50 @@ def on_disconnect():
             del PLAYERS[request.sid]
             emit('update_player_list', list(PLAYERS.values()), broadcast=True)
     print(f"Client disconnected: {request.sid}")
+
+@socketio.on('rejoin_waiting')
+def on_rejoin_waiting(data):
+    """Handle player reconnection during waiting phase"""
+    if GAME_STATE['status'] != 'WAITING':
+        emit('rejoin_waiting_failed', {'message': '遊戲已開始'})
+        return
+    
+    name = data.get('name', '')
+    if not name:
+        emit('rejoin_waiting_failed', {'message': '名稱錯誤'})
+        return
+    
+    # Find existing player by name
+    old_player = None
+    old_id = None
+    for pid, player in list(PLAYERS.items()):
+        if player['name'] == name:
+            old_player = player
+            old_id = pid
+            break
+    
+    if not old_player:
+        emit('rejoin_waiting_failed', {'message': '找不到玩家'})
+        return
+    
+    # Transfer player data to new session
+    new_id = request.sid
+    old_player['id'] = new_id
+    old_player['disconnected'] = False
+    
+    # Move player to new session ID
+    if old_id != new_id:
+        PLAYERS[new_id] = old_player
+        del PLAYERS[old_id]
+        print(f"Player {name} rejoined waiting: {old_id[:8]}... -> {new_id[:8]}...")
+    
+    emit('rejoin_waiting_success', {'id': new_id, 'avatar_id': old_player.get('avatar_id', 'horse1')}, room=new_id)
+    # Notify host about reconnection
+    emit('player_reconnected', {
+        'player_id': new_id,
+        'player_name': name
+    }, broadcast=True)
+    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
 
 @socketio.on('join_game')
 def on_join(data):
@@ -191,7 +239,7 @@ def on_add_bots(data):
     if GAME_STATE['status'] != 'WAITING':
         return
     
-    count = min(int(data.get('count', 1)), 9)  # Max 9 bots
+    count = min(int(data.get('count', 1)), 1)  # Add 1 bot at a time
     BOT_NAMES = ['🤖小明', '🤖小華', '🤖阿寶', '🤖大雄', '🤖小新', '🤖小丸', '🤖阿呆', '🤖小智', '🤖喵喵']
     
     import uuid
@@ -267,48 +315,44 @@ def on_start_race(data):
     # Check if we need to emit prizes to client? No, only results.
     emit('race_started', {'total_prize': GAME_STATE['total_prize']}, broadcast=True)
 
-# Question bank (20 questions) - 橋前駅店內問題
+# Question bank (26 questions) - 橋前駅店內問題
 QUESTIONS = [
     # 第一組：內場細節
     {"id": 1, "q": "在橋前駅店裡...招牌鬆餅咬開是？", "options": ["湯圓", "麻糬", "棉花糖"], "answer": 1},
-    {"id": 2, "q": "在橋前駅店裡...那杯特殊的拿鐵叫？", "options": ["命運拿鐵", "直覺拿鐵", "覺醒拿鐵"], "answer": 1},
-    {"id": 3, "q": "在橋前駅店裡...盤子上的手繪動物？", "options": ["貓咪", "狗狗", "兔子"], "answer": 0},
     # 第二組：環境與裝潢
     {"id": 4, "q": "在橋前駅店裡...外牆那隻貓去哪？", "options": ["釣魚", "太空", "飆車"], "answer": 1},
-    {"id": 5, "q": "在橋前駅店裡...草皮上停什麼車？", "options": ["跑車", "老機車", "戰車"], "answer": 1},
-    {"id": 6, "q": "在橋前駅店裡...廁所牆壁滿滿是？", "options": ["鏡子", "畫作塗鴉", "磁磚"], "answer": 1},
+    {"id": 5, "q": "在橋前駅店裡...戶外塑木板上停什麼車？", "options": ["跑車", "老機車", "戰車"], "answer": 1},
+    {"id": 6, "q": "在橋前駅店裡...廁所牆壁滿滿是？", "options": ["鏡子", "手繪圖案", "磁磚"], "answer": 1},
+    {"id": 7, "q": "在橋前駅店裡...是什麼搭建起來的？", "options": ["水泥", "貨櫃屋", "厚紙版"], "answer": 1},
     # 第三組：店規與地理
-    {"id": 7, "q": "在橋前駅店裡...店門口這條橋叫？", "options": ["關廟橋", "許縣溪橋", "新化橋"], "answer": 1},
-    {"id": 8, "q": "在橋前駅店裡...帶寵物進室內要？", "options": ["綁繩子", "不落地", "穿衣服"], "answer": 1},
+    {"id": 8, "q": "在橋前駅店裡...帶寵物進室內要？", "options": ["綁繩子", "放提籃或推車內", "穿衣服"], "answer": 1},
     {"id": 9, "q": "在橋前駅店裡...用餐限時幾分鐘？", "options": ["90分", "120分", "無限時"], "answer": 1},
     {"id": 10, "q": "在橋前駅店裡...每週哪一天公休？", "options": ["週一", "週二", "週三"], "answer": 1},
     # 第四組：菜單細節篇
     {"id": 11, "q": "在橋前駅店裡...招牌鬆餅形狀是？", "options": ["圓形", "方形", "愛心"], "answer": 2},
-    {"id": 12, "q": "在橋前駅店裡...口袋麵包夾什麼？", "options": ["打拋豬", "咖哩雞", "牛肉片"], "answer": 0},
-    {"id": 13, "q": "在橋前駅店裡...招牌義大利麵醬？", "options": ["青醬", "南瓜堅果", "墨魚汁"], "answer": 1},
+    {"id": 12, "q": "在橋前駅店裡...口袋麵包夾什麼？", "options": ["打拋豬(莎味迪卡口味)", "咖哩雞", "牛肉片"], "answer": 0},
     {"id": 14, "q": "在橋前駅店裡...燻雞可頌搭配？", "options": ["薯泥", "生菜沙拉", "白飯"], "answer": 1},
     # 第五組：店規與設施
-    {"id": 15, "q": "在橋前駅店裡...每人低消要點？", "options": ["一杯飲料", "一份鬆餅", "200元"], "answer": 0},
-    {"id": 16, "q": "在橋前駅店裡...WiFi 密碼通常是？", "options": ["老闆生日", "店裡電話", "12345678"], "answer": 1},
+    {"id": 15, "q": "在橋前駅店裡...每人低消要點？", "options": ["一顆愛心品項", "一份鬆餅", "200元"], "answer": 0},
+    {"id": 16, "q": "在橋前駅店裡...WiFi 密碼通常是？", "options": ["老闆生日", "店名加地址號碼", "12345678"], "answer": 1},
     {"id": 17, "q": "在橋前駅店裡...點餐結帳要去？", "options": ["廚房", "櫃台", "等店員來"], "answer": 1},
     # 第六組：地理與風格
     {"id": 18, "q": "在橋前駅店裡...店在南雄路幾段？", "options": ["一段", "二段", "三段"], "answer": 1},
-    {"id": 19, "q": "在橋前駅店裡...戶外用餐區鋪？", "options": ["紅磚", "綠草皮", "水泥"], "answer": 1},
+    {"id": 19, "q": "在橋前駅店裡...戶外用餐區鋪？", "options": ["紅磚", "綠草皮或塑木板", "水泥"], "answer": 1},
     {"id": 20, "q": "在橋前駅店裡...整間店走什麼風？", "options": ["日式風", "工業風", "宮廷風"], "answer": 1},
     # 第七組：點餐規則與自助服務
     {"id": 22, "q": "在橋前駅店裡...畫完單要去？", "options": ["櫃台結帳", "廚房大叫", "丟在桌上"], "answer": 0},
-    {"id": 23, "q": "在橋前駅店裡...水和餐具要？", "options": ["自己拿", "大喊店員", "變魔術"], "answer": 0},
+    {"id": 23, "q": "在橋前駅店裡...水要？", "options": ["自己拿", "大喊店員", "變魔術"], "answer": 0},
     {"id": 24, "q": "在橋前駅店裡...絕對不能帶？", "options": ["外食", "錢包", "手機"], "answer": 0},
     {"id": 25, "q": "在橋前駅店裡...鬆餅現烤要？", "options": ["等一下", "馬上有", "昨天做"], "answer": 0},
     {"id": 26, "q": "在橋前駅店裡...櫃台收什麼？", "options": ["現金", "支票", "欠條"], "answer": 0},
     # 第八組：飲料與餐點細節
-    {"id": 29, "q": "在橋前駅店裡...冰沙上面有？", "options": ["薄荷葉/裝飾", "鹹菜", "荷包蛋"], "answer": 0},
+    {"id": 29, "q": "在橋前駅店裡...冰沙上面有？", "options": ["薄荷葉", "鹹菜", "荷包蛋"], "answer": 0},
     {"id": 30, "q": "在橋前駅店裡...熱拿鐵表面？", "options": ["有拉花", "黑黑的", "有蒼蠅"], "answer": 0},
-    {"id": 31, "q": "在橋前駅店裡...鬆餅旁那是？", "options": ["鮮奶油/冰淇淋", "哇沙米", "醬油膏"], "answer": 0},
-    {"id": 33, "q": "在橋前駅店裡...這裡披薩是？", "options": ["薄脆皮", "芝心厚片", "發糕皮"], "answer": 0},
+    {"id": 31, "q": "在橋前駅店裡...鬆餅旁那是？", "options": ["冰淇淋", "哇沙米", "醬油膏"], "answer": 0},
     # 第九組：氛圍與視覺
     {"id": 37, "q": "在橋前駅店裡...店內燈光是？", "options": ["溫馨黃光", "手術燈白", "七彩霓虹"], "answer": 0},
-    {"id": 39, "q": "在橋前駅店裡...二樓看出去？", "options": ["許縣溪/風景", "垃圾場", "火山爆發"], "answer": 0},
+    {"id": 39, "q": "在橋前駅店裡...戶外區可以看到？", "options": ["許縣溪/風景", "垃圾場", "火山爆發"], "answer": 0},
 ]
 
 # Track which questions each player has seen

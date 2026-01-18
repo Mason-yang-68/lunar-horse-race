@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>🧧 金馬迎春 - 遊戲說明</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Heiti TC', sans-serif;
+            background: linear-gradient(135deg, #8B0000 0%, #5c0000 50%, #3a0000 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: gold;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        .slide {
+            display: none;
+            animation: fadeIn 0.5s ease;
+            min-height: 70vh;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-icon {
+            font-size: 100px;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        .slide-title {
+            font-size: 28px;
+            color: gold;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .slide-content {
+            font-size: 20px;
+            line-height: 1.8;
+            padding: 0 20px;
+            max-width: 500px;
+        }
+
+        .highlight {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        /* Phone shake animation */
+        .phone-demo {
+            width: 80px;
+            height: 140px;
+            background: linear-gradient(145deg, #333, #222);
+            border-radius: 15px;
+            border: 3px solid #555;
+            position: relative;
+            animation: shake 0.3s infinite;
+            margin: 20px auto;
+        }
+
+        .phone-demo::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 30px;
+            background: linear-gradient(135deg, #8B0000, #5c0000);
+            border-radius: 5px;
+        }
+
+        .phone-demo::after {
+            content: '📳';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 30px;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: rotate(-5deg) translateX(-3px);
+            }
+
+            50% {
+                transform: rotate(5deg) translateX(3px);
+            }
+        }
+
+        /* Quiz demo */
+        .quiz-demo {
+            background: linear-gradient(135deg, #8B0000, #5c0000);
+            border: 3px solid gold;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 350px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px gold;
+            }
+
+            50% {
+                box-shadow: 0 0 25px gold;
+            }
+        }
+
+        .quiz-demo-question {
+            font-size: 18px;
+            color: gold;
+            margin-bottom: 15px;
+        }
+
+        .quiz-demo-option {
+            background: linear-gradient(to bottom, #FFD700, #DAA520);
+            color: #8B0000;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 8px 0;
+            font-weight: bold;
+        }
+
+        .quiz-demo-option.correct {
+            animation: correctAnswer 1s infinite;
+        }
+
+        @keyframes correctAnswer {
+
+            0%,
+            100% {
+                background: linear-gradient(to bottom, #00FF00, #00CC00);
+                color: white;
+            }
+
+            50% {
+                background: linear-gradient(to bottom, #FFD700, #DAA520);
+                color: #8B0000;
+            }
+        }
+
+        /* Prize display */
+        .prize-demo {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .prize-item {
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid gold;
+            border-radius: 15px;
+            padding: 15px;
+            min-width: 80px;
+        }
+
+        .prize-rank {
+            font-size: 40px;
+        }
+
+        .prize-amount {
+            color: gold;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        /* Navigation */
+        .nav-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .dot.active {
+            background: gold;
+            transform: scale(1.3);
+        }
+
+        .nav-btn {
+            background: linear-gradient(to bottom, #FFD700, #DAA520);
+            color: #8B0000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+
+        .nav-btn:active {
+            transform: scale(0.95);
+        }
+
+        .nav-btn.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid gold;
+        }
+
+        /* Horse racing animation */
+        .race-track {
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to bottom, #654321, #8B4513);
+            border-radius: 10px;
+            position: relative;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .race-horse {
+            position: absolute;
+            font-size: 50px;
+            top: 25px;
+            animation: raceMove 3s infinite;
+        }
+
+        @keyframes raceMove {
+            0% {
+                left: 0%;
+            }
+
+            100% {
+                left: 80%;
+            }
+        }
+
+        .finish-line {
+            position: absolute;
+            right: 10%;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: repeating-linear-gradient(to bottom,
+                    white 0px,
+                    white 10px,
+                    black 10px,
+                    black 20px);
+        }
+
+        /* Auto-play indicator */
+        .auto-play-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin: 20px auto;
+            max-width: 300px;
+            overflow: hidden;
+        }
+
+        .auto-play-progress {
+            height: 100%;
+            background: gold;
+            width: 0%;
+            animation: autoProgress 5s linear forwards;
+        }
+
+        @keyframes autoProgress {
+            from {
+                width: 0%;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧧 金馬迎春 遊戲說明</h1>
+
+        <!-- Slide 1: Welcome -->
+        <div class="slide active" id="slide1">
+            <div class="slide-icon">🏇</div>
+            <div class="slide-title">歡迎來到賽馬紅包</div>
+            <div class="slide-content">
+                一場刺激的手機搖晃比賽！<br>
+                <span class="highlight">搖得越快，跑得越快！</span><br>
+                答對問題還能加速前進！
+            </div>
+            <div class="auto-play-bar">
+                <div class="auto-play-progress"></div>
+            </div>
+        </div>
+
+        <!-- Slide 2: How to Join -->
+        <div class="slide" id="slide2">
+            <div class="slide-icon">📱</div>
+            <div class="slide-title">第一步：加入遊戲</div>
+            <div class="slide-content">
+                1️⃣ 掃描 QR Code 或輸入網址<br>
+                2️⃣ 選擇你喜歡的<span class="highlight">馬匹頭像</span><br>
+                3️⃣ 輸入你的<span class="highlight">名字</span><br>
+                4️⃣ 點擊「加入比賽」
+            </div>
+            <div class="auto-play-bar">
+                <div class="auto-play-progress"></div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Shake to Move -->
+        <div class="slide" id="slide3">
+            <div class="phone-demo"></div>
+            <div class="slide-title">第二步：搖動手機前進</div>
+            <div class="slide-content">
+                比賽開始後...<br>
+                <span class="highlight">用力搖晃手機！</span><br>
+                或是狂點螢幕上的按鈕！<br>
+                搖得越快，馬跑得越快！
+            </div>
+            <div class="auto-play-bar">
+                <div class="auto-play-progress"></div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Quiz Questions -->
+        <div class="slide" id="slide4">
+            <div class="slide-title">第三步：搶答問題</div>
+            <div class="quiz-demo">
+                <div class="quiz-demo-question">❓ 在橋前駅店裡...招牌鬆餅咬開是？</div>
+                <div class="quiz-demo-option">(A) 湯圓</div>
+                <div class="quiz-demo-option correct">(B) 麻糬 ✓</div>
+                <div class="quiz-demo-option">(C) 棉花糖</div>
+            </div>
+            <div class="slide-content">
+                <span class="highlight">答對 = 前進 5%！</span><br>
+                答錯 = 凍結 5 秒 ❄️
+            </div>
+            <div class="auto-play-bar">
+                <div class="auto-play-progress"></div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Race Track -->
+        <div class="slide" id="slide5">
+            <div class="slide-title">第四步：衝向終點</div>
+            <div class="race-track">
+                <div class="race-horse">🏇</div>
+                <div class="finish-line"></div>
+            </div>
+            <div class="slide-content">
+                第一個衝線的就是<span class="highlight">冠軍</span>！<br>
+                看大螢幕追蹤你的進度！
+            </div>
+            <div class="auto-play-bar">
+                <div class="auto-play-progress"></div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Prizes -->
+        <div class="slide" id="slide6">
+            <div class="slide-icon">🧧</div>
+            <div class="slide-title">豐厚紅包等你拿！</div>
+            <div class="prize-demo">
+                <div class="prize-item">
+                    <div class="prize-rank">🥇</div>
+                    <div class="prize-amount">冠軍</div>
+                </div>
+                <div class="prize-item">
+                    <div class="prize-rank">🥈</div>
+                    <div class="prize-amount">亞軍</div>
+                </div>
+                <div class="prize-item">
+                    <div class="prize-rank">🥉</div>
+                    <div class="prize-amount">季軍</div>
+                </div>
+            </div>
+            <div class="slide-content">
+                完成比賽即可看到你的獎金！<br>
+                <span class="highlight">祝你馬到成功！🎉</span>
+            </div>
+            <div class="auto-play-bar">
+                <div class="auto-play-progress"></div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-dots">
+            <div class="dot active" data-slide="1"></div>
+            <div class="dot" data-slide="2"></div>
+            <div class="dot" data-slide="3"></div>
+            <div class="dot" data-slide="4"></div>
+            <div class="dot" data-slide="5"></div>
+            <div class="dot" data-slide="6"></div>
+        </div>
+
+        <div>
+            <button class="nav-btn secondary" id="prevBtn" onclick="prevSlide()">◀ 上一頁</button>
+            <button class="nav-btn" id="nextBtn" onclick="nextSlide()">下一頁 ▶</button>
+        </div>
+
+        <p style="margin-top: 20px; opacity: 0.7; font-size: 14px;">自動播放中... 點擊任意處暫停</p>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 6;
+        let autoPlayTimer = null;
+        let isPaused = false;
+
+        function showSlide(n) {
+            // Hide all slides
+            document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+
+            // Show target slide
+            const slide = document.getElementById('slide' + n);
+            if (slide) {
+                slide.classList.add('active');
+                // Reset animation
+                const progress = slide.querySelector('.auto-play-progress');
+                if (progress) {
+                    progress.style.animation = 'none';
+                    progress.offsetHeight; // Trigger reflow
+                    progress.style.animation = 'autoProgress 5s linear forwards';
+                }
+            }
+
+            // Update dots
+            const dot = document.querySelector(`.dot[data-slide="${n}"]`);
+            if (dot) dot.classList.add('active');
+
+            // Update buttons
+            document.getElementById('prevBtn').style.visibility = n === 1 ? 'hidden' : 'visible';
+            document.getElementById('nextBtn').innerText = n === totalSlides ? '開始遊戲 🎮' : '下一頁 ▶';
+
+            currentSlide = n;
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                showSlide(currentSlide + 1);
+                resetAutoPlay();
+            } else {
+                // Go to game
+                window.location.href = '/play';
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 1) {
+                showSlide(currentSlide - 1);
+                resetAutoPlay();
+            }
+        }
+
+        function resetAutoPlay() {
+            if (autoPlayTimer) clearTimeout(autoPlayTimer);
+            if (!isPaused) {
+                autoPlayTimer = setTimeout(() => {
+                    if (currentSlide < totalSlides) {
+                        nextSlide();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Click handlers for dots
+        document.querySelectorAll('.dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                showSlide(parseInt(dot.dataset.slide));
+                resetAutoPlay();
+            });
+        });
+
+        // Pause on tap
+        document.querySelector('.container').addEventListener('click', (e) => {
+            if (!e.target.classList.contains('nav-btn') && !e.target.classList.contains('dot')) {
+                isPaused = !isPaused;
+                if (isPaused) {
+                    if (autoPlayTimer) clearTimeout(autoPlayTimer);
+                    document.querySelector('.auto-play-progress').style.animationPlayState = 'paused';
+                } else {
+                    document.querySelector('.auto-play-progress').style.animationPlayState = 'running';
+                    resetAutoPlay();
+                }
+            }
+        });
+
+        // Start auto-play
+        resetAutoPlay();
+
+        // Touch swipe support
+        let touchStartX = 0;
+        document.addEventListener('touchstart', e => touchStartX = e.touches[0].clientX);
+        document.addEventListener('touchend', e => {
+            const diff = touchStartX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) nextSlide();
+                else prevSlide();
+            }
+        });
+    </script>
+</body>
+
+</html>

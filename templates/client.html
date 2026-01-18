@@ -308,6 +308,7 @@
         let myName = '';
         let myAvatar = 'horse1';
         let isRacing = false;
+        let isWaiting = false;  // Track waiting state for reconnection
         let disconnectOverlay = null;
 
         // Show disconnect overlay
@@ -337,7 +338,7 @@
         // Socket disconnect handler
         socket.on('disconnect', () => {
             console.log('Socket disconnected!');
-            if (isRacing) {
+            if (isRacing || isWaiting) {
                 showDisconnectOverlay();
             }
         });
@@ -347,10 +348,15 @@
             console.log('Socket connected/reconnected');
             hideDisconnectOverlay();
 
-            // If we were in a game, try to rejoin
+            // If we were in a game (racing), try to rejoin
             if (myName && isRacing) {
                 console.log('Attempting to rejoin game as:', myName);
                 socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar });
+            }
+            // If we were waiting, try to rejoin waiting
+            else if (myName && isWaiting) {
+                console.log('Attempting to rejoin waiting as:', myName);
+                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar });
             }
         });
 
@@ -379,9 +385,34 @@
             alert('無法重新加入遊戲: ' + (data.message || '遊戲已結束'));
         });
 
+        // Rejoin waiting success
+        socket.on('rejoin_waiting_success', (data) => {
+            console.log('Rejoin waiting successful!', data);
+            myId = data.id;
+            hideDisconnectOverlay();
+
+            // Show success message
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,128,0,0.9);color:white;padding:20px 40px;border-radius:15px;font-size:20px;z-index:9999;';
+            msg.innerText = '✅ 已重新連線!';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 2000);
+        });
+
+        // Rejoin waiting failed
+        socket.on('rejoin_waiting_failed', (data) => {
+            console.log('Rejoin waiting failed:', data);
+            hideDisconnectOverlay();
+            // If game has started, reload page to show login
+            if (data.message === '遊戲已開始') {
+                alert('遊戲已開始，請重新加入');
+                location.reload();
+            }
+        });
+
         // Page visibility change (iOS background detection)
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && isRacing) {
+            if (document.visibilityState === 'visible' && (isRacing || isWaiting)) {
                 console.log('Page became visible, checking connection...');
                 if (!socket.connected) {
                     showDisconnectOverlay();
@@ -392,6 +423,7 @@
 
         socket.on('join_success', (data) => {
             myId = data.id;
+            isWaiting = true;  // Mark that we're in waiting state
 
             // Show player's selected avatar in wait screen
             const avatarImg = document.getElementById('wait-avatar-img');
@@ -417,6 +449,7 @@
             document.getElementById('wait-screen').style.display = 'none';
             document.getElementById('race-screen').style.display = 'block';
 
+            isWaiting = false;  // No longer waiting
             isRacing = true;  // Mark that we're in a race for reconnection
 
             // Vibrate to signal start
