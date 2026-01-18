@@ -1393,19 +1393,19 @@
         socket.on('quiz_timeout_notify', (data) => {
             console.log('Quiz timeout:', data);
 
-            // Remove question mark effect and add timeout effect
+            // Remove question mark effect and add brief timeout visual
             const raceTrack = document.getElementById('race-oval-track');
             const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
             if (horseEl) {
                 horseEl.classList.remove('answering');
-                // Add timeout visual effect ⏱️💤 (2 seconds to match server freeze)
+                // Brief timeout visual effect (no freeze penalty)
                 horseEl.classList.add('timeout');
-                setTimeout(() => horseEl.classList.remove('timeout'), 2000);
+                setTimeout(() => horseEl.classList.remove('timeout'), 1000);
             }
 
             const floatingText = document.createElement('div');
             floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#888;text-shadow:0 0 10px #666;z-index:1000;text-align:center;pointer-events:none;';
-            floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答! 凍結 2 秒`;
+            floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答`;
             document.body.appendChild(floatingText);
             floatingText.animate([
                 { opacity: 1, transform: 'translateX(-50%) translateY(0)' },

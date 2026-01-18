@@ -591,13 +591,13 @@ def on_quiz_timeout(data):
     player['answering_until'] = 0
     player['current_question_id'] = None
     
-    # Freeze player for 2 seconds as timeout penalty
-    player['freeze_until'] = current_time + 2
+    # No freeze penalty for timeout - just cooldown
+    # player['freeze_until'] = current_time + 2  # Removed
     
     # Set 6 second cooldown before next question
     player['quiz_cooldown_until'] = current_time + 6
     
-    print(f"{player['name']} quiz TIMEOUT! (freeze 2s + cooldown 6s)")
+    print(f"{player['name']} quiz TIMEOUT! (no penalty, cooldown 6s)")
     
     # Notify host
     socketio.emit('quiz_timeout_notify', {
