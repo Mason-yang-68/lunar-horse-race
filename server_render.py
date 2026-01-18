@@ -363,6 +363,16 @@ PLAYER_QUESTIONS = {}
 def quiz_spawner():
     """Background task to send quiz questions to random players during race"""
     import time
+    
+    # Wait 5 seconds after race starts before sending any questions
+    # This gives players time to settle in
+    QUIZ_DELAY_AFTER_START = 5
+    race_start = GAME_STATE.get('race_start_time', time.time())
+    initial_wait = race_start + QUIZ_DELAY_AFTER_START - time.time()
+    if initial_wait > 0:
+        print(f"Quiz spawner waiting {initial_wait:.1f}s before starting...")
+        eventlet.sleep(initial_wait)
+    
     while GAME_STATE['status'] == 'RACING':
         # Dynamic interval based on player count: more players = faster questions
         # With 1-2 players: 4-6s, with 10 players: ~1.2-2s
