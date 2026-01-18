@@ -1059,14 +1059,28 @@
             hideTakeoverCountdown();
         }
 
-        // Generate QR Code
-        const localUrl = window.location.protocol + "//" + window.location.hostname + ":" + window.location.port + "/play";
+        // Generate QR Code with fallback
+        const localUrl = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "") + "/play";
         document.getElementById('join-url').innerText = localUrl;
-        new QRCode(document.getElementById("qrcode-container"), {
-            text: localUrl,
-            width: 150,
-            height: 150
-        });
+
+        // Make URL clickable as fallback
+        document.getElementById('join-url').onclick = function () {
+            navigator.clipboard.writeText(localUrl);
+            alert('網址已複製！');
+        };
+        document.getElementById('join-url').style.cursor = 'pointer';
+        document.getElementById('join-url').title = '點擊複製網址';
+
+        try {
+            new QRCode(document.getElementById("qrcode-container"), {
+                text: localUrl,
+                width: 150,
+                height: 150
+            });
+        } catch (e) {
+            console.error('QR Code failed:', e);
+            document.getElementById("qrcode-container").innerHTML = '<div style="padding:20px;background:#333;border-radius:10px;color:#FFD700;">QR Code 載入失敗<br>請使用以下網址</div>';
+        }
 
         // Update prize display when inputs change
         function updatePrizeDisplay() {

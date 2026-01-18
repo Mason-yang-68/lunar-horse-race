@@ -20,7 +20,6 @@ GAME_STATE = {
 ITEMS = {} # { item_id: { type: 'food'|'hardware', position: {x, y}, active: True } }
 ACTIVE_EFFECTS = {} # { sid: { type: 'food'|'hardware', end_time: timestamp } }
 
-# HOST Control - only one HOST can control at a time
 HOST_CONTROL = {
     'controller_sid': None,  # Session ID of the controlling HOST
     'disconnect_time': None,  # Timestamp when controller disconnected
@@ -28,11 +27,31 @@ HOST_CONTROL = {
 }
 HOST_TAKEOVER_TIMEOUT = 30  # Seconds before viewers can take over
 
+# Background task control - for cancellation on reset
+TASK_FLAGS = {
+    'quiz_running': False,
+    'race_timer_running': False,
+    'bot_running': False
+}
+
+# Rate limiting for shake events
+RATE_LIMIT = {
+    # sid: last_shake_time
+}
+RATE_LIMIT_INTERVAL = 0.05  # Minimum 50ms between shakes (20 per second max)
+
+# Player timeout tracking for memory cleanup
+PLAYER_LAST_ACTIVE = {
+    # sid: last_active_timestamp
+}
+CLEANUP_TIMEOUT = 3600  # 1 hour in seconds
+
 # Bot player auto-shake runner
 def bot_runner():
     import time
     BOT_NAMES = ['小明', '阿華', '小美', '阿寶', '小強', '小花', '阿傑', '小玉', '阿龍']
-    while GAME_STATE['status'] == 'RACING':
+    TASK_FLAGS['bot_running'] = True
+    while GAME_STATE['status'] == 'RACING' and TASK_FLAGS['bot_running']:
         eventlet.sleep(random.uniform(0.3, 0.8))  # Random shake interval
         for bot_id in BOT_PLAYERS:
             if bot_id in PLAYERS and not PLAYERS[bot_id].get('finished'):
@@ -479,11 +498,12 @@ def race_timer():
     """Background task to handle max race time and progress sync"""
     import time
     
+    TASK_FLAGS['race_timer_running'] = True
     race_start = GAME_STATE.get('race_start_time', time.time())
     last_sync = 0
     SYNC_INTERVAL = 5  # Sync progress every 5 seconds
     
-    while GAME_STATE['status'] == 'RACING':
+    while GAME_STATE['status'] == 'RACING' and TASK_FLAGS['race_timer_running']:
         eventlet.sleep(1)  # Check every second
         
         if GAME_STATE['status'] != 'RACING':
@@ -574,6 +594,8 @@ def quiz_spawner():
     """Background task to send quiz questions to random players during race"""
     import time
     
+    TASK_FLAGS['quiz_running'] = True
+    
     # Wait 5 seconds after race starts before sending any questions
     # This gives players time to settle in
     QUIZ_DELAY_AFTER_START = 5
@@ -587,7 +609,7 @@ def quiz_spawner():
     socketio.emit('quiz_starting', {}, namespace='/')
     print("Quiz spawner: Questions are now active!")
     
-    while GAME_STATE['status'] == 'RACING':
+    while GAME_STATE['status'] == 'RACING' and TASK_FLAGS['quiz_running']:
         # Dynamic interval based on player count: more players = faster questions
         # With 1-2 players: 4-6s, with 10 players: ~1.2-2s
         player_count = max(1, len(PLAYERS))
@@ -838,8 +860,18 @@ def on_shake(data):
         return  # Already finished
     
     import time
-    player = PLAYERS[request.sid]
     current_time = time.time()
+    
+    # Rate limiting: max 20 shakes per second (50ms interval)
+    last_shake = RATE_LIMIT.get(request.sid, 0)
+    if current_time - last_shake < RATE_LIMIT_INTERVAL:
+        return  # Too fast, ignore this shake
+    RATE_LIMIT[request.sid] = current_time
+    
+    # Update last active time for memory cleanup tracking
+    PLAYER_LAST_ACTIVE[request.sid] = current_time
+    
+    player = PLAYERS[request.sid]
     
     # Check if countdown is still in progress
     race_start_time = GAME_STATE.get('race_start_time', 0)
@@ -1034,9 +1066,22 @@ def on_calculate_results():
 
 @socketio.on('reset_game')
 def on_reset():
+    # Stop all background tasks
+    TASK_FLAGS['quiz_running'] = False
+    TASK_FLAGS['race_timer_running'] = False
+    TASK_FLAGS['bot_running'] = False
+    
+    # Reset game state
     GAME_STATE['status'] = 'WAITING'
     PLAYERS.clear()
-    BOT_PLAYERS.clear()  # Clear bots on reset
+    BOT_PLAYERS.clear()
+    
+    # Clear tracking data to prevent memory leaks
+    RATE_LIMIT.clear()
+    PLAYER_LAST_ACTIVE.clear()
+    PLAYER_QUESTIONS.clear()
+    
+    print("Game reset: All tasks stopped, data cleared")
     emit('reset_game_client', broadcast=True)
 
 if __name__ == '__main__':
