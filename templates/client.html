@@ -359,18 +359,47 @@
             }
         });
 
-        // Vibration helper for cross-browser support
+        // ========= iOS 18+ Haptic using checkbox switch =========
+        // Create hidden switch checkbox for iOS haptic (一次性建立)
+        let hapticSwitch = null;
+        function initHapticSwitch() {
+            if (!hapticSwitch) {
+                hapticSwitch = document.createElement('input');
+                hapticSwitch.type = 'checkbox';
+                hapticSwitch.setAttribute('switch', '');  // iOS 18+ 開關樣式
+                hapticSwitch.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+                hapticSwitch.id = 'ios-haptic-switch';
+                document.body.appendChild(hapticSwitch);
+            }
+        }
+
+        // Trigger iOS haptic by toggling the switch
+        function triggerIOSHaptic() {
+            initHapticSwitch();
+            if (hapticSwitch) {
+                hapticSwitch.checked = !hapticSwitch.checked;
+                // Dispatch change event to trigger the haptic
+                hapticSwitch.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        // Vibration helper with iOS haptic support
         function vibrate(pattern) {
-            // Try navigator.vibrate first (Android, some iOS)
+            // Try navigator.vibrate first (Android)
             if (navigator.vibrate) {
                 try {
                     navigator.vibrate(pattern);
-                    return true;
                 } catch (e) {
                     console.log('Vibration failed:', e);
                 }
             }
-            return false;
+
+            // Also trigger iOS haptic (iOS 18+)
+            // Pattern: each vibration = one haptic toggle
+            const count = Array.isArray(pattern) ? Math.ceil(pattern.length / 2) : 1;
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => triggerIOSHaptic(), i * 150);
+            }
         }
         // =========================================
 

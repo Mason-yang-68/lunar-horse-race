@@ -31,7 +31,7 @@ HOST_TAKEOVER_TIMEOUT = 30  # Seconds before viewers can take over
 # Bot player auto-shake runner
 def bot_runner():
     import time
-    BOT_NAMES = ['💻電腦1', '💻電腦2', '💻電腦3', '💻電腦4', '💻電腦5', '💻電腦6', '💻電腦7', '💻電腦8', '💻電腦9']
+    BOT_NAMES = ['小明', '阿華', '小美', '阿寶', '小強', '小花', '阿傑', '小玉', '阿龍']
     while GAME_STATE['status'] == 'RACING':
         eventlet.sleep(random.uniform(0.3, 0.8))  # Random shake interval
         for bot_id in BOT_PLAYERS:
@@ -393,7 +393,7 @@ def on_add_bots(data):
         return
     
     count = min(int(data.get('count', 1)), 1)  # Add 1 bot at a time
-    BOT_NAMES = ['💻電腦1', '💻電腦2', '💻電腦3', '💻電腦4', '💻電腦5', '💻電腦6', '💻電腦7', '💻電腦8', '💻電腦9']
+    BOT_NAMES = ['小明', '阿華', '小美', '阿寶', '小強', '小花', '阿傑', '小玉', '阿龍']
     
     import uuid
     for i in range(count):
