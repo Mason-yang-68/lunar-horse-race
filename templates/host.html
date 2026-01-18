@@ -288,13 +288,28 @@
         .track-player.jet-boost::after {
             content: '💨💨💨';
             position: absolute;
-            right: 80%;
+            /* Dynamic position based on --jet-dir variable (default: left) */
+            left: var(--jet-dir, left)=='left' ? auto: 80%;
+            right: var(--jet-dir, left)=='right' ? auto: 80%;
             top: 50%;
             transform: translateY(-50%);
             font-size: 25px;
             animation: jet-trail 0.3s infinite;
             opacity: 0.9;
             letter-spacing: -5px;
+        }
+
+        /* When jet is on the right side (horse moving left) */
+        .track-player.jet-boost[style*="--jet-dir: right"]::after {
+            left: 80%;
+            right: auto;
+        }
+
+        /* When jet is on the left side (horse moving right) - default */
+        .track-player.jet-boost[style*="--jet-dir: left"]::after,
+        .track-player.jet-boost:not([style*="--jet-dir"])::after {
+            right: 80%;
+            left: auto;
         }
 
         .track-player.jet-boost img {
@@ -1082,6 +1097,7 @@
             announcement.innerHTML = `
                 <div style="font-size:80px;margin-bottom:20px;animation:bounce 0.5s ease infinite;">❓</div>
                 <div style="font-size:48px;font-weight:bold;color:#FFD700;text-shadow:0 0 20px #ff8800,0 0 40px #ff0;">問答時間開始！</div>
+                <div style="font-size:20px;color:white;margin-top:10px;text-shadow:0 0 10px #000;">請注意馬兒頭上的 ❓ 就要開始作答</div>
                 <div style="font-size:24px;color:white;margin-top:15px;text-shadow:0 0 10px #000;">答對加速 💨 答錯凍結 ❄️</div>
             `;
             document.body.appendChild(announcement);
@@ -1331,10 +1347,23 @@
                 floatingText.style.textShadow = '0 0 10px #0f0';
                 floatingText.innerHTML = `✅ ${data.player_name} 答對了! +5%`;
 
-                // Add jet boost effect 💨
+                // Add jet boost effect 💨 - direction based on horse movement
                 if (horseEl) {
+                    // Find player and get current progress to determine direction
+                    const player = players.find(p => p.id === data.player_id);
+                    const progress = player ? player.progress : 0;
+                    const direction = getHorseDirection(progress);
+
+                    // Set CSS variable for jet direction (opposite to movement)
+                    // direction = 1 means facing right, so jet should be on left (behind)
+                    // direction = -1 means facing left, so jet should be on right (behind)
+                    horseEl.style.setProperty('--jet-dir', direction === 1 ? 'left' : 'right');
+
                     horseEl.classList.add('jet-boost');
-                    setTimeout(() => horseEl.classList.remove('jet-boost'), 2000);
+                    setTimeout(() => {
+                        horseEl.classList.remove('jet-boost');
+                        horseEl.style.removeProperty('--jet-dir');
+                    }, 2000);
                     showEffectOnHorse(horseEl, 'food');
                 }
                 playCorrectSound();
