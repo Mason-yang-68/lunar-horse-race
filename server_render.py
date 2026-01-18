@@ -43,7 +43,7 @@ def bot_runner():
                     # Bot auto-answers randomly
                     if random.random() < random.uniform(0.5, 0.9):  # Random 50%-90% chance correct
                         player['progress'] = min(100, player['progress'] + 3)
-                        player['quiz_cooldown_until'] = current_time + 3
+                        player['quiz_cooldown_until'] = current_time + 6
                     else:
                         player['freeze_until'] = current_time + 5
                         player['quiz_cooldown_until'] = current_time + 6
@@ -552,10 +552,10 @@ def on_quiz_answer(data):
     player['shuffled_answer'] = None  # Clear after use
     
     if is_correct:
-        # Correct: Move forward 3% instantly + 3 second cooldown
+        # Correct: Move forward 3% instantly + 6 second cooldown
         player['progress'] = min(100, player['progress'] + 3)
-        player['quiz_cooldown_until'] = current_time + 3
-        print(f"{player['name']} answered CORRECTLY! (+3%, cooldown 3s)")
+        player['quiz_cooldown_until'] = current_time + 6
+        print(f"{player['name']} answered CORRECTLY! (+3%, cooldown 6s)")
     else:
         # Wrong: Freeze for 5 seconds + 6 second cooldown before next question
         player['freeze_until'] = current_time + 5
