@@ -372,22 +372,29 @@
             }
         });
 
-        // Rejoin success
-        // Rejoin success
+        // Rejoin success during racing
         socket.on('rejoin_success', (data) => {
             console.log('Rejoin successful!', data);
+            console.log('Old myId:', myId, '-> New myId:', data.id);
             myId = data.id;
             hideDisconnectOverlay();
 
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
             startListening();
 
-            // Show success message
+            // Show success message with new ID for debugging
             const msg = document.createElement('div');
             msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,128,0,0.9);color:white;padding:20px 40px;border-radius:15px;font-size:20px;z-index:9999;';
-            msg.innerText = '✅ 已重新連線!';
+            msg.innerText = '✅ 已重新連線! 可以繼續搖晃!';
             document.body.appendChild(msg);
-            setTimeout(() => msg.remove(), 2000);
+            setTimeout(() => msg.remove(), 3000);
+
+            // Force a test shake to verify connection works
+            setTimeout(() => {
+                if (socket.connected) {
+                    console.log('Test shake after rejoin, socket.connected =', socket.connected);
+                }
+            }, 500);
         });
 
         // Rejoin failed (game not in progress or player not found)
@@ -691,6 +698,7 @@
             // Check if socket is connected
             if (!socket.connected) {
                 console.log('Socket NOT connected! Trying to reconnect...');
+                showDisconnectOverlay();
                 socket.connect();
                 return;
             }
@@ -702,7 +710,8 @@
             // Show debug counter briefly (for testing)
             const debugEl = document.getElementById('shake-debug');
             if (debugEl) {
-                debugEl.innerText = `搖晃: ${shakeCount}`;
+                // Show more debug info for iOS troubleshooting
+                debugEl.innerText = `搖晃: ${shakeCount} | 連線: ${socket.connected ? '✓' : '✗'}`;
             }
 
             // Haptic and Visual feedback
