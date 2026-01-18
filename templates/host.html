@@ -808,8 +808,8 @@
             </div>
         </div>
 
-        <button class="btn" onclick="startRace()">開始賽跑 / START RACE 🏁</button>
-        <button class="btn" onclick="addBots(1)"
+        <button class="btn host-control-btn" onclick="startRace()">開始賽跑 / START RACE 🏁</button>
+        <button class="btn host-control-btn" onclick="addBots(1)"
             style="background:linear-gradient(145deg,#444,#222);margin-left:10px;font-size:14px;padding:10px 20px;">+1
             🤖 測試</button>
         <a href="/tutorial" target="_blank" class="btn"
@@ -912,7 +912,7 @@
         <div id="winners-list">
             <!-- Winners table -->
         </div>
-        <button class="btn" onclick="resetGame()">再來一局 / PLAY AGAIN 🔄</button>
+        <button class="btn host-control-btn" onclick="resetGame()">再來一局 / PLAY AGAIN 🔄</button>
     </div>
 
     <script>
@@ -922,6 +922,116 @@
         let currentLeader = null; // Track current leader for cheer sound
         let leaderInitialized = false; // Track if leader was set for the first time
         let activeItems = {}; // Track active items on track
+        let isHostController = false; // Whether this HOST has control
+
+        // Register as HOST when connected
+        socket.on('connect', () => {
+            console.log('HOST connected, registering...');
+            socket.emit('host_register');
+        });
+
+        // Handle HOST status response
+        socket.on('host_status', (data) => {
+            console.log('HOST status:', data);
+            isHostController = data.is_controller;
+            updateHostControlUI(data);
+        });
+
+        // Handle controller going offline
+        socket.on('host_controller_offline', (data) => {
+            console.log('HOST controller went offline, timeout:', data.timeout);
+            if (!isHostController) {
+                showTakeoverCountdown(data.timeout);
+            }
+        });
+
+        // Handle controller coming back online
+        socket.on('host_controller_online', () => {
+            console.log('HOST controller is back online');
+            hideTakeoverCountdown();
+        });
+
+        // Update UI based on HOST control status
+        function updateHostControlUI(data) {
+            // Remove existing status banner if present
+            let banner = document.getElementById('host-control-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'host-control-banner';
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px;text-align:center;font-size:16px;font-weight:bold;z-index:10000;';
+                document.body.insertBefore(banner, document.body.firstChild);
+            }
+
+            if (data.is_controller) {
+                banner.style.background = 'linear-gradient(90deg, #228B22, #32CD32)';
+                banner.style.color = 'white';
+                banner.innerHTML = '👑 您是主控制者 - ' + data.message;
+                enableControls(true);
+            } else {
+                banner.style.background = 'linear-gradient(90deg, #FF8C00, #FFA500)';
+                banner.style.color = 'white';
+                let html = '👁️ 觀看模式 - ' + data.message;
+                if (data.can_takeover) {
+                    html += ' <button onclick="takeoverHost()" style="margin-left:20px;padding:5px 15px;font-size:14px;cursor:pointer;background:#FFD700;border:none;border-radius:5px;font-weight:bold;">🔓 接管控制權</button>';
+                }
+                banner.innerHTML = html;
+                enableControls(false);
+            }
+        }
+
+        // Enable or disable control buttons
+        function enableControls(enabled) {
+            const controlButtons = document.querySelectorAll('.host-control-btn');
+            controlButtons.forEach(btn => {
+                btn.disabled = !enabled;
+                btn.style.opacity = enabled ? '1' : '0.5';
+                btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            });
+        }
+
+        // Show takeover countdown
+        function showTakeoverCountdown(timeout) {
+            let countdown = document.getElementById('takeover-countdown');
+            if (!countdown) {
+                countdown = document.createElement('div');
+                countdown.id = 'takeover-countdown';
+                countdown.style.cssText = 'position:fixed;top:50px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#FFD700;padding:20px 40px;border-radius:15px;font-size:20px;z-index:10001;text-align:center;';
+                document.body.appendChild(countdown);
+            }
+
+            let remaining = timeout;
+            countdown.innerHTML = `⏳ 控制者已離線<br>可在 <span id="takeover-time">${remaining}</span> 秒後接管`;
+
+            const interval = setInterval(() => {
+                remaining--;
+                const timeEl = document.getElementById('takeover-time');
+                if (timeEl) timeEl.innerText = remaining;
+
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    countdown.innerHTML = '🔓 控制者已離線超過 30 秒<br><button onclick="takeoverHost()" style="margin-top:10px;padding:10px 30px;font-size:18px;cursor:pointer;background:#FFD700;border:none;border-radius:10px;font-weight:bold;">🔓 接管控制權</button>';
+                }
+            }, 1000);
+
+            countdown.dataset.intervalId = interval;
+        }
+
+        // Hide takeover countdown
+        function hideTakeoverCountdown() {
+            const countdown = document.getElementById('takeover-countdown');
+            if (countdown) {
+                if (countdown.dataset.intervalId) {
+                    clearInterval(parseInt(countdown.dataset.intervalId));
+                }
+                countdown.remove();
+            }
+        }
+
+        // Take over as controller
+        function takeoverHost() {
+            socket.emit('host_takeover');
+            hideTakeoverCountdown();
+        }
 
         // Generate QR Code
         const localUrl = window.location.protocol + "//" + window.location.hostname + ":" + window.location.port + "/play";

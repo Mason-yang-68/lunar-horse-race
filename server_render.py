@@ -20,6 +20,14 @@ GAME_STATE = {
 ITEMS = {} # { item_id: { type: 'food'|'hardware', position: {x, y}, active: True } }
 ACTIVE_EFFECTS = {} # { sid: { type: 'food'|'hardware', end_time: timestamp } }
 
+# HOST Control - only one HOST can control at a time
+HOST_CONTROL = {
+    'controller_sid': None,  # Session ID of the controlling HOST
+    'disconnect_time': None,  # Timestamp when controller disconnected
+    'viewers': []  # List of viewer HOST session IDs
+}
+HOST_TAKEOVER_TIMEOUT = 30  # Seconds before viewers can take over
+
 # Bot player auto-shake runner
 def bot_runner():
     import time
@@ -102,6 +110,21 @@ def on_connect():
 
 @socketio.on('disconnect')
 def on_disconnect():
+    import time
+    
+    # Handle HOST disconnection
+    if HOST_CONTROL['controller_sid'] == request.sid:
+        HOST_CONTROL['disconnect_time'] = time.time()
+        print(f"HOST controller disconnected: {request.sid[:8]}...")
+        # Notify all viewers that controller is offline
+        socketio.emit('host_controller_offline', {
+            'timeout': HOST_TAKEOVER_TIMEOUT
+        }, namespace='/')
+    elif request.sid in HOST_CONTROL['viewers']:
+        HOST_CONTROL['viewers'].remove(request.sid)
+        print(f"HOST viewer disconnected: {request.sid[:8]}...")
+    
+    # Handle player disconnection
     if request.sid in PLAYERS:
         player = PLAYERS[request.sid]
         # Keep ALL players during racing OR waiting (iOS may disconnect when screen locks)
@@ -118,6 +141,102 @@ def on_disconnect():
             del PLAYERS[request.sid]
             emit('update_player_list', list(PLAYERS.values()), broadcast=True)
     print(f"Client disconnected: {request.sid}")
+
+@socketio.on('host_register')
+def on_host_register():
+    """Register a HOST connection - first one becomes controller, others are viewers"""
+    import time
+    
+    sid = request.sid
+    
+    # Check if there's already a controller
+    if HOST_CONTROL['controller_sid'] is None:
+        # No controller - become the controller
+        HOST_CONTROL['controller_sid'] = sid
+        HOST_CONTROL['disconnect_time'] = None
+        print(f"HOST controller registered: {sid[:8]}...")
+        emit('host_status', {
+            'is_controller': True,
+            'message': '您是主控制者'
+        })
+    elif HOST_CONTROL['controller_sid'] == sid:
+        # Reconnected as the same controller
+        HOST_CONTROL['disconnect_time'] = None
+        print(f"HOST controller reconnected: {sid[:8]}...")
+        emit('host_status', {
+            'is_controller': True,
+            'message': '已重新連線為主控制者'
+        })
+        # Notify viewers that controller is back
+        socketio.emit('host_controller_online', {}, namespace='/')
+    else:
+        # Already has a controller - become a viewer
+        if sid not in HOST_CONTROL['viewers']:
+            HOST_CONTROL['viewers'].append(sid)
+        print(f"HOST viewer registered: {sid[:8]}...")
+        
+        # Check if controller is offline and can be taken over
+        can_takeover = False
+        remaining = 0
+        if HOST_CONTROL['disconnect_time']:
+            elapsed = time.time() - HOST_CONTROL['disconnect_time']
+            if elapsed >= HOST_TAKEOVER_TIMEOUT:
+                can_takeover = True
+            else:
+                remaining = int(HOST_TAKEOVER_TIMEOUT - elapsed)
+        
+        emit('host_status', {
+            'is_controller': False,
+            'can_takeover': can_takeover,
+            'takeover_remaining': remaining,
+            'message': '控制者已存在，您目前為觀看者'
+        })
+
+@socketio.on('host_takeover')
+def on_host_takeover():
+    """Allow a viewer to take over as controller after timeout"""
+    import time
+    
+    sid = request.sid
+    
+    # Check if current controller is offline long enough
+    if HOST_CONTROL['disconnect_time']:
+        elapsed = time.time() - HOST_CONTROL['disconnect_time']
+        if elapsed >= HOST_TAKEOVER_TIMEOUT:
+            # Takeover allowed
+            old_controller = HOST_CONTROL['controller_sid']
+            
+            # Remove from viewers if present
+            if sid in HOST_CONTROL['viewers']:
+                HOST_CONTROL['viewers'].remove(sid)
+            
+            # Become new controller
+            HOST_CONTROL['controller_sid'] = sid
+            HOST_CONTROL['disconnect_time'] = None
+            
+            print(f"HOST takeover: {old_controller[:8] if old_controller else 'None'}... -> {sid[:8]}...")
+            
+            emit('host_status', {
+                'is_controller': True,
+                'message': '已成功接管控制權'
+            })
+            
+            # Notify all that new controller is active
+            socketio.emit('host_controller_online', {}, namespace='/')
+        else:
+            remaining = int(HOST_TAKEOVER_TIMEOUT - elapsed)
+            emit('host_status', {
+                'is_controller': False,
+                'can_takeover': False,
+                'takeover_remaining': remaining,
+                'message': f'需再等待 {remaining} 秒才能接管'
+            })
+    else:
+        emit('host_status', {
+            'is_controller': False,
+            'can_takeover': False,
+            'message': '目前控制者仍在線上'
+        })
 
 @socketio.on('rejoin_waiting')
 def on_rejoin_waiting(data):
