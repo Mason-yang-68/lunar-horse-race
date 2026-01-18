@@ -1308,6 +1308,74 @@
             }
         });
 
+        // Progress synchronization from server (every 5 seconds)
+        socket.on('progress_sync', (data) => {
+            console.log('Progress sync:', data);
+
+            // Update remaining time display
+            updateRaceTimer(data.remaining);
+
+            // Sync all player progress
+            data.players.forEach(p => {
+                const player = players.find(pl => pl.id === p.id);
+                if (player) {
+                    player.progress = p.progress;
+                    player.finished = p.finished;
+                }
+            });
+
+            // Update track positions
+            updateOvalTrack(players, 'race-oval-track');
+        });
+
+        // Race auto-end notification
+        socket.on('race_auto_end', (data) => {
+            console.log('Race auto-end:', data);
+
+            const announcement = document.createElement('div');
+            announcement.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;background:rgba(0,0,0,0.9);padding:30px 50px;border-radius:20px;border:3px solid gold;';
+
+            if (data.reason === 'timeout') {
+                announcement.innerHTML = `
+                    <div style="font-size:60px;margin-bottom:15px;">⏱️</div>
+                    <div style="font-size:32px;color:#FFD700;font-weight:bold;">比賽時間到！</div>
+                    <div style="font-size:20px;color:white;margin-top:10px;">10 分鐘已過，正在計算結果...</div>
+                `;
+            } else {
+                announcement.innerHTML = `
+                    <div style="font-size:60px;margin-bottom:15px;">🏁</div>
+                    <div style="font-size:32px;color:#FFD700;font-weight:bold;">全員完成！</div>
+                    <div style="font-size:20px;color:white;margin-top:10px;">正在計算結果...</div>
+                `;
+            }
+            document.body.appendChild(announcement);
+
+            // Remove after results come
+            setTimeout(() => announcement.remove(), 5000);
+        });
+
+        // Update race timer display
+        function updateRaceTimer(remaining) {
+            let timerEl = document.getElementById('race-timer');
+            if (!timerEl) {
+                timerEl = document.createElement('div');
+                timerEl.id = 'race-timer';
+                timerEl.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#FFD700;padding:10px 20px;border-radius:10px;font-size:24px;font-weight:bold;z-index:1000;';
+                document.body.appendChild(timerEl);
+            }
+
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            timerEl.innerText = `⏱️ ${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Change color when less than 1 minute
+            if (remaining < 60) {
+                timerEl.style.color = '#FF4444';
+            } else {
+                timerEl.style.color = '#FFD700';
+            }
+        }
+
         // Player finished - show finish animation and rank
         socket.on('player_finished', (data) => {
             console.log('Player finished:', data);

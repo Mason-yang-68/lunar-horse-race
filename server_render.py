@@ -289,8 +289,30 @@ def on_join(data):
         emit('error', {'message': 'Game already started!'})
         return
 
-    name = data.get('name', 'Unknown')
-    avatar_id = data.get('avatar_id', 'horse1') 
+    name = data.get('name', 'Unknown').strip()
+    avatar_id = data.get('avatar_id', 'horse1')
+    
+    # Name validation: limit length to 10 characters
+    if len(name) > 10:
+        name = name[:10]
+    
+    # Check for empty name
+    if not name:
+        emit('error', {'message': '請輸入名字'})
+        return
+    
+    # Check for duplicate names
+    existing_names = [p['name'] for p in PLAYERS.values()]
+    if name in existing_names:
+        # Auto-add suffix for duplicate names
+        suffix = 2
+        new_name = f"{name}{suffix}"
+        while new_name in existing_names:
+            suffix += 1
+            new_name = f"{name}{suffix}"
+        name = new_name
+        # Notify player about name change
+        emit('name_changed', {'original': data.get('name'), 'new': name})
     
     PLAYERS[request.sid] = {
         'id': request.sid,
@@ -301,7 +323,7 @@ def on_join(data):
         'finished': False,
         'dodge_until': 0  # Timestamp when dodge expires
     }
-    emit('join_success', {'id': request.sid}, room=request.sid)
+    emit('join_success', {'id': request.sid, 'name': name}, room=request.sid)
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)
 
 @socketio.on('rejoin_game')
@@ -435,6 +457,65 @@ def on_start_race(data):
     
     # Check if we need to emit prizes to client? No, only results.
     emit('race_started', {'total_prize': GAME_STATE['total_prize']}, broadcast=True)
+    
+    # Start race timer for auto-end and progress sync
+    socketio.start_background_task(race_timer)
+    print("Race timer started!")
+
+# Maximum race time in seconds (10 minutes)
+MAX_RACE_TIME = 600
+
+def race_timer():
+    """Background task to handle max race time and progress sync"""
+    import time
+    
+    race_start = GAME_STATE.get('race_start_time', time.time())
+    last_sync = 0
+    SYNC_INTERVAL = 5  # Sync progress every 5 seconds
+    
+    while GAME_STATE['status'] == 'RACING':
+        eventlet.sleep(1)  # Check every second
+        
+        if GAME_STATE['status'] != 'RACING':
+            break
+        
+        current_time = time.time()
+        elapsed = current_time - race_start
+        
+        # Progress sync every 5 seconds
+        if current_time - last_sync >= SYNC_INTERVAL:
+            last_sync = current_time
+            # Send full progress update to all clients
+            progress_data = {
+                'players': [{'id': p['id'], 'progress': p['progress'], 'finished': p.get('finished', False)} 
+                           for p in PLAYERS.values()],
+                'elapsed': int(elapsed),
+                'remaining': max(0, int(MAX_RACE_TIME - elapsed))
+            }
+            socketio.emit('progress_sync', progress_data, namespace='/')
+        
+        # Check if all players finished
+        active_players = [p for p in PLAYERS.values() if not p.get('is_bot', False)]
+        all_finished = all(p.get('finished', False) for p in active_players) if active_players else False
+        
+        if all_finished:
+            print("All players finished! Auto-calculating results...")
+            socketio.emit('race_auto_end', {'reason': 'all_finished'}, namespace='/')
+            # Wait a moment for clients to process
+            eventlet.sleep(2)
+            calculate_and_emit_results()
+            break
+        
+        # Check max time
+        if elapsed >= MAX_RACE_TIME:
+            print(f"Max race time ({MAX_RACE_TIME}s) reached! Auto-ending race...")
+            socketio.emit('race_auto_end', {'reason': 'timeout', 'elapsed': int(elapsed)}, namespace='/')
+            # Wait a moment for clients to process
+            eventlet.sleep(2)
+            calculate_and_emit_results()
+            break
+    
+    print("Race timer ended.")
 
 # Question bank (26 questions) - 橋前駅店內問題
 QUESTIONS = [
@@ -886,19 +967,9 @@ def on_preview_prizes(data):
     except:
         emit('prize_preview', [])
 
-@socketio.on('calculate_results')
-def on_calculate_results():
+def calculate_and_emit_results():
+    """Calculate final results and emit to all clients - can be called from timer or socket event"""
     # Sort by finish order if available, else progress
-    sorted_players = sorted(PLAYERS.values(), key=lambda x: (x.get('finished', False), x.get('finish_order', 999), x['progress']), reverse=True)
-    # The sort logic:
-    # We want finished=True first.
-    # Inside finished=True, we want finish_order smallest (1, 2, 3...)
-    # Inside finished=False, we want progress largest.
-    # Simplify:
-    # key: (is_finished, -finish_order, progress)
-    # True > False.
-    # finish_order: 1 is better than 2. So -1 > -2.
-    
     sorted_players = sorted(PLAYERS.values(), key=lambda x: (
         1 if x.get('finished') else 0,
         -x.get('finish_order', 999) if x.get('finished') else 0,
@@ -943,8 +1014,13 @@ def on_calculate_results():
                 'avatar_id': player.get('avatar_id', 'horse1')
             })
             
-    emit('game_results', results, broadcast=True)
+    socketio.emit('game_results', results, namespace='/')
     GAME_STATE['status'] = 'FINISHED'
+    print(f"Game results emitted for {n} players")
+
+@socketio.on('calculate_results')
+def on_calculate_results():
+    calculate_and_emit_results()
 
 @socketio.on('reset_game')
 def on_reset():

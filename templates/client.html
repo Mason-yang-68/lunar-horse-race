@@ -479,6 +479,11 @@
 
         socket.on('join_success', (data) => {
             myId = data.id;
+            // Update name if server modified it (e.g., added suffix for duplicate)
+            if (data.name && data.name !== myName) {
+                console.log(`Name changed by server: ${myName} -> ${data.name}`);
+                myName = data.name;
+            }
             isWaiting = true;  // Mark that we're in waiting state
 
             // Show player's selected avatar in wait screen
@@ -486,7 +491,7 @@
             avatarImg.src = '/static/images/' + myAvatar + '.png';
             avatarImg.onerror = function () { this.src = '/static/images/horse1.png'; };
 
-            // Show player name
+            // Show player name (use potentially updated name)
             document.getElementById('wait-player-name').innerText = myName;
 
             // Check for DeviceMotionEvent permission support
