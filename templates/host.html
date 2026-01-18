@@ -747,6 +747,11 @@
             z-index: 10;
         }
 
+        /* Hide crown if dizzy/stunned to avoid conflict */
+        .track-player.dizzy.is-leader::after {
+            display: none;
+        }
+
         .track-player.is-leader img {
             filter: drop-shadow(0 0 5px gold);
         }
@@ -1975,7 +1980,40 @@
         });
 
         socket.on('reset_game_client', () => {
-            location.reload();
+            // Reset without reloading logic to keep HOST controller status
+            console.log('Game reset received');
+
+            // Switch screens
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('race-screen').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'block';
+
+            // Reset local variables
+            players = [];
+            currentLeaderId = null;
+
+            // Clear tracks
+            document.getElementById('oval-track').innerHTML = '';
+            document.getElementById('race-oval-track').innerHTML = '';
+
+            // Reset counters
+            document.getElementById('player-count').innerText = '0';
+
+            // Remove dynamically added elements
+            const raceTimer = document.getElementById('race-timer');
+            if (raceTimer) raceTimer.remove();
+
+            const banner = document.getElementById('host-control-banner');
+            if (banner && !isHostController) {
+                // If viewer, maybe re-check status? 
+                // But usually host status persists.
+            }
+
+            // Stop music/sounds
+            stopAllMusic();
+
+            // Clear any active effects/timeouts if possible
+            // (Most will be cleared by garbage collection or specific checks)
         });
 
         function startRace() {
