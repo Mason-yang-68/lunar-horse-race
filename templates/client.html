@@ -141,9 +141,11 @@
         .quiz-option {
             display: block;
             width: 100%;
-            padding: 15px 25px;
-            margin: 10px 0;
-            font-size: 20px;
+            padding: 18px 25px;
+            margin: 15px 0;
+            /* Increased spacing */
+            font-size: 22px;
+            /* Slightly larger text */
             background: linear-gradient(to bottom, #FFD700, #DAA520);
             color: #8B0000;
             border: 3px solid #FFF;
@@ -151,6 +153,13 @@
             cursor: pointer;
             font-weight: bold;
             transition: transform 0.1s, box-shadow 0.1s;
+            pointer-events: none;
+            /* Disabled initially */
+        }
+
+        .quiz-option.enabled {
+            pointer-events: auto;
+            /* Enabled after delay */
         }
 
         .quiz-option:active {
@@ -535,21 +544,36 @@
             questionEl.innerText = '❓ ' + data.question;
             box.appendChild(questionEl);
 
-            // Options
+            // Options - add delay before clickable to prevent accidental clicks
+            const optionButtons = [];
             data.options.forEach((option, index) => {
                 const btn = document.createElement('button');
-                btn.className = 'quiz-option';
+                btn.className = 'quiz-option';  // Initially disabled via CSS
                 btn.innerText = ['(A) ', '(B) ', '(C) '][index] + option;
                 btn.onclick = () => {
+                    if (!btn.classList.contains('enabled')) return;  // Extra safety
                     clearInterval(countdownInterval);
                     clearTimeout(quizTimeoutHandle);
                     submitAnswer(index);
                 };
                 box.appendChild(btn);
+                optionButtons.push(btn);
             });
+
+            // Add "wait" message
+            const waitMsg = document.createElement('div');
+            waitMsg.style.cssText = 'text-align:center;font-size:16px;color:#ff8;margin-top:10px;';
+            waitMsg.innerText = '⏳ 請先閱讀題目...';
+            box.appendChild(waitMsg);
 
             overlay.appendChild(box);
             document.body.appendChild(overlay);
+
+            // Enable buttons after 0.5 second delay to prevent accidental clicks
+            setTimeout(() => {
+                optionButtons.forEach(btn => btn.classList.add('enabled'));
+                waitMsg.remove();
+            }, 500);
 
             // Auto-timeout after 5 seconds
             quizTimeoutHandle = setTimeout(() => {
@@ -703,8 +727,8 @@
                 return;
             }
 
-            // Emulate a stronger tap (2x speed of before)
-            socket.emit('shake_event', { intensity: 40 });
+            // Emulate a stronger tap (5x speed boost)
+            socket.emit('shake_event', { intensity: 200 });
             shakeCount++;
 
             // Show debug counter briefly (for testing)
