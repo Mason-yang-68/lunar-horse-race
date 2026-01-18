@@ -156,9 +156,10 @@ def on_rejoin_waiting(data):
         print(f"Player {name} rejoined waiting: {old_id[:8]}... -> {new_id[:8]}...")
     
     emit('rejoin_waiting_success', {'id': new_id, 'avatar_id': old_player.get('avatar_id', 'horse1')}, room=new_id)
-    # Notify host about reconnection
+    # Notify host about reconnection - send old_id so host can find the element
     emit('player_reconnected', {
         'player_id': new_id,
+        'old_player_id': old_id,
         'player_name': name
     }, broadcast=True)
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)
@@ -226,9 +227,10 @@ def on_rejoin(data):
         print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}... (states cleared)")
     
     emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
-    # Notify host about reconnection
+    # Notify host about reconnection - IMPORTANT: send old_id so host can find the element
     emit('player_reconnected', {
         'player_id': new_id,
+        'old_player_id': old_id,  # Add old ID so host can find the disconnected horse element
         'player_name': name
     }, broadcast=True)
     emit('update_player_list', list(PLAYERS.values()), broadcast=True)

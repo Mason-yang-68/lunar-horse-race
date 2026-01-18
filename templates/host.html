@@ -1357,14 +1357,28 @@
         socket.on('player_reconnected', (data) => {
             console.log('Player reconnected:', data);
             const raceTrack = document.getElementById('race-oval-track');
-            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            // Try to find horse element by OLD id first (because that's what's on screen)
+            let horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.old_player_id) : null;
+
+            // If not found by old ID, try new ID as fallback
+            if (!horseEl && raceTrack) {
+                horseEl = raceTrack.querySelector('#track-' + data.player_id);
+            }
 
             if (horseEl) {
+                // Update element ID to new player ID
+                horseEl.id = 'track-' + data.player_id;
+
                 // Remove disconnect indicator
                 horseEl.style.opacity = '1';
                 horseEl.style.filter = '';
                 const dcBadge = horseEl.querySelector('.dc-badge');
                 if (dcBadge) dcBadge.remove();
+
+                console.log('Horse element updated:', data.old_player_id, '->', data.player_id);
+            } else {
+                console.log('Could not find horse element for:', data.old_player_id, 'or', data.player_id);
             }
 
             // Show notification
