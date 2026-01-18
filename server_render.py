@@ -42,11 +42,11 @@ def bot_runner():
                 if player.get('answering_until', 0) > current_time:
                     # Bot auto-answers randomly
                     if random.random() < random.uniform(0.5, 0.9):  # Random 50%-90% chance correct
-                        player['progress'] = min(100, player['progress'] + 5)
-                        player['quiz_cooldown_until'] = current_time + 2
+                        player['progress'] = min(100, player['progress'] + 3)
+                        player['quiz_cooldown_until'] = current_time + 6
                     else:
-                        player['freeze_until'] = current_time + 2
-                        player['quiz_cooldown_until'] = current_time + 7
+                        player['freeze_until'] = current_time + 5
+                        player['quiz_cooldown_until'] = current_time + 6
                     player['answering_until'] = 0
                     continue
                 
@@ -426,7 +426,7 @@ def quiz_spawner():
         new_correct_index = shuffled_options.index(correct_answer_text)
         
         # Set answering state (10 seconds to answer, blocks shaking)
-        target_player['answering_until'] = current_time + 10
+        target_player['answering_until'] = current_time + 15  # 15 seconds to answer
         target_player['current_question_id'] = question['id']
         target_player['shuffled_answer'] = new_correct_index  # Store shuffled answer
         
@@ -437,7 +437,7 @@ def quiz_spawner():
             'question_id': question['id'],
             'question': question['q'],
             'options': shuffled_options,  # Shuffled!
-            'timeout': 10  # Tell client about timeout
+            'timeout': 15  # Tell client about timeout (15 seconds)
         }, room=player_id)
         
         # Notify host that a question was sent (include player index for color)
@@ -548,15 +548,15 @@ def on_quiz_answer(data):
     player['shuffled_answer'] = None  # Clear after use
     
     if is_correct:
-        # Correct: Move forward 5% instantly + 3 second cooldown
-        player['progress'] = min(100, player['progress'] + 5)
-        player['quiz_cooldown_until'] = current_time + 3  # Changed to 3s
-        print(f"{player['name']} answered CORRECTLY! (+5%, cooldown 3s)")
+        # Correct: Move forward 3% instantly + 6 second cooldown
+        player['progress'] = min(100, player['progress'] + 3)
+        player['quiz_cooldown_until'] = current_time + 6
+        print(f"{player['name']} answered CORRECTLY! (+3%, cooldown 6s)")
     else:
-        # Wrong: Freeze for 5 seconds + 7 second cooldown before next question
-        player['freeze_until'] = current_time + 5  # Changed to 5 seconds
-        player['quiz_cooldown_until'] = current_time + 7
-        print(f"{player['name']} answered WRONG! (frozen 5s, cooldown 7s)")
+        # Wrong: Freeze for 5 seconds + 6 second cooldown before next question
+        player['freeze_until'] = current_time + 5
+        player['quiz_cooldown_until'] = current_time + 6
+        print(f"{player['name']} answered WRONG! (frozen 5s, cooldown 6s)")
     
     # Send result to the player
     socketio.emit('quiz_result', {
@@ -594,10 +594,10 @@ def on_quiz_timeout(data):
     # Freeze player for 2 seconds as timeout penalty
     player['freeze_until'] = current_time + 2
     
-    # Set 7 second cooldown before next question
-    player['quiz_cooldown_until'] = current_time + 7
+    # Set 6 second cooldown before next question
+    player['quiz_cooldown_until'] = current_time + 6
     
-    print(f"{player['name']} quiz TIMEOUT! (freeze 2s + cooldown 7s)")
+    print(f"{player['name']} quiz TIMEOUT! (freeze 2s + cooldown 6s)")
     
     # Notify host
     socketio.emit('quiz_timeout_notify', {
