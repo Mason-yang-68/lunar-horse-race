@@ -373,6 +373,40 @@
             }
         }
 
+        /* Timeout effect - when player didn't answer in time */
+        .track-player.timeout {
+            z-index: 150 !important;
+        }
+
+        .track-player.timeout::before {
+            content: '⏱️💤';
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 35px;
+            animation: timeout-pulse 0.5s infinite;
+            filter: drop-shadow(0 0 8px #888);
+        }
+
+        .track-player.timeout img {
+            filter: drop-shadow(0 0 8px #888) brightness(0.7) grayscale(0.5) !important;
+        }
+
+        @keyframes timeout-pulse {
+
+            0%,
+            100% {
+                transform: translateX(-50%) scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: translateX(-50%) scale(1.1);
+                opacity: 0.7;
+            }
+        }
+
         /* ================ END NEW HORSE EFFECTS ================ */
 
         .track-player-name {
@@ -1345,16 +1379,19 @@
         socket.on('quiz_timeout_notify', (data) => {
             console.log('Quiz timeout:', data);
 
-            // Remove question mark effect
+            // Remove question mark effect and add timeout effect
             const raceTrack = document.getElementById('race-oval-track');
             const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
             if (horseEl) {
                 horseEl.classList.remove('answering');
+                // Add timeout visual effect ⏱️💤 (2 seconds to match server freeze)
+                horseEl.classList.add('timeout');
+                setTimeout(() => horseEl.classList.remove('timeout'), 2000);
             }
 
             const floatingText = document.createElement('div');
             floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#888;text-shadow:0 0 10px #666;z-index:1000;text-align:center;pointer-events:none;';
-            floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答`;
+            floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答! 凍結 2 秒`;
             document.body.appendChild(floatingText);
             floatingText.animate([
                 { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
