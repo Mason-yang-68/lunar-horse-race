@@ -308,15 +308,43 @@
             }
         });
 
-        // Clear any undo history on page load and visibility change
+        // Thoroughly clear any undo history and blur all inputs
         function clearUndoHistory() {
-            // Remove focus from any inputs to clear undo stack
-            if (document.activeElement) {
+            // Blur active element
+            if (document.activeElement && document.activeElement !== document.body) {
                 document.activeElement.blur();
             }
+
+            // Blur ALL text inputs on the page to clear their undo stacks
+            document.querySelectorAll('input, textarea, [contenteditable]').forEach(el => {
+                el.blur();
+            });
+
+            // Move focus to body to completely clear any text editing context
+            document.body.focus();
+
+            console.log('Cleared undo history, active element:', document.activeElement?.tagName);
         }
+
+        // Call on visibility change and page load
         document.addEventListener('visibilitychange', clearUndoHistory);
         window.addEventListener('load', clearUndoHistory);
+
+        // iOS 18+ Haptic feedback using checkbox switch trick
+        let hapticCheckbox = null;
+        function triggerIOSHaptic() {
+            // Create hidden checkbox switch if not exists
+            if (!hapticCheckbox) {
+                hapticCheckbox = document.createElement('input');
+                hapticCheckbox.type = 'checkbox';
+                hapticCheckbox.setAttribute('switch', '');
+                hapticCheckbox.style.cssText = 'position:fixed;top:-100px;left:-100px;opacity:0;pointer-events:none;';
+                document.body.appendChild(hapticCheckbox);
+            }
+            // Toggle it to trigger haptic
+            hapticCheckbox.checked = !hapticCheckbox.checked;
+            hapticCheckbox.dispatchEvent(new Event('change'));
+        }
         // =========================================
 
         const socket = io({
@@ -480,8 +508,12 @@
             isWaiting = false;  // No longer waiting
             isRacing = true;  // Mark that we're in a race for reconnection
 
-            // Vibrate to signal start
+            // IMPORTANT: Clear iOS undo history to prevent "Shake to Undo" dialog
+            clearUndoHistory();
+
+            // Vibrate to signal start (and iOS haptic if available)
             if (navigator.vibrate) navigator.vibrate(200);
+            triggerIOSHaptic();
         });
 
         socket.on('game_results', (results) => {
@@ -513,8 +545,13 @@
         socket.on('quiz_question', (data) => {
             currentQuestionId = data.question_id;
 
-            // Vibrate 3 times to alert (stronger pattern)
+            // Vibrate 3 times to alert (stronger pattern for Android)
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+
+            // iOS 18+ haptic feedback (multiple triggers for stronger effect)
+            triggerIOSHaptic();
+            setTimeout(() => triggerIOSHaptic(), 150);
+            setTimeout(() => triggerIOSHaptic(), 300);
 
             // Create quiz overlay
             const overlay = document.createElement('div');
