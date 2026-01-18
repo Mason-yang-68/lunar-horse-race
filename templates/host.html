@@ -984,21 +984,22 @@
             if (!banner) {
                 banner = document.createElement('div');
                 banner.id = 'host-control-banner';
-                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:10px;text-align:center;font-size:16px;font-weight:bold;z-index:10000;';
-                document.body.insertBefore(banner, document.body.firstChild);
+                // Position in top-left corner, small label that doesn't cover main content
+                banner.style.cssText = 'position:fixed;top:10px;left:10px;padding:8px 15px;font-size:14px;font-weight:bold;z-index:10000;border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.3);';
+                document.body.appendChild(banner);
             }
 
             if (data.is_controller) {
                 banner.style.background = 'linear-gradient(90deg, #228B22, #32CD32)';
                 banner.style.color = 'white';
-                banner.innerHTML = '👑 您是主控制者 - ' + data.message;
+                banner.innerHTML = '👑 主控制者';
                 enableControls(true);
             } else {
                 banner.style.background = 'linear-gradient(90deg, #FF8C00, #FFA500)';
                 banner.style.color = 'white';
-                let html = '👁️ 觀看模式 - ' + data.message;
+                let html = '👁️ 觀看模式';
                 if (data.can_takeover) {
-                    html += ' <button onclick="takeoverHost()" style="margin-left:20px;padding:5px 15px;font-size:14px;cursor:pointer;background:#FFD700;border:none;border-radius:5px;font-weight:bold;">🔓 接管控制權</button>';
+                    html += ' <button onclick="takeoverHost()" style="margin-left:10px;padding:3px 10px;font-size:12px;cursor:pointer;background:#FFD700;border:none;border-radius:5px;font-weight:bold;">🔓 接管</button>';
                 }
                 banner.innerHTML = html;
                 enableControls(false);
@@ -2068,10 +2069,16 @@
         // Add "Finish Now" button for testing/manual override
         const finishBtn = document.createElement('button');
         finishBtn.innerText = "結束比賽 (計算結果)";
-        finishBtn.className = 'btn';
+        finishBtn.className = 'btn host-control-btn';  // Added host-control-btn for permission control
         finishBtn.style.fontSize = '14px';
         finishBtn.style.marginTop = '20px';
-        finishBtn.onclick = () => { socket.emit('calculate_results'); };
+        finishBtn.onclick = () => {
+            if (!isHostController) {
+                alert('觀看模式無法操作');
+                return;
+            }
+            socket.emit('calculate_results');
+        };
         document.getElementById('race-screen').appendChild(finishBtn);
 
         // Initialize prize display
