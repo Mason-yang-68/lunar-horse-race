@@ -318,6 +318,12 @@
             // Blur ALL text inputs on the page to clear their undo stacks
             document.querySelectorAll('input, textarea, [contenteditable]').forEach(el => {
                 el.blur();
+                // Clear the undo stack by setting value to itself
+                if (el.value !== undefined) {
+                    const val = el.value;
+                    el.value = '';
+                    el.value = val;
+                }
             });
 
             // Move focus to body to completely clear any text editing context
@@ -326,24 +332,45 @@
             console.log('Cleared undo history, active element:', document.activeElement?.tagName);
         }
 
+        // Disable all inputs when game starts (strongest prevention)
+        function disableInputsForGame() {
+            document.querySelectorAll('input, textarea').forEach(el => {
+                el.setAttribute('readonly', 'true');
+                el.setAttribute('disabled', 'true');
+                el.blur();
+            });
+            // Also remove any contenteditable
+            document.querySelectorAll('[contenteditable]').forEach(el => {
+                el.setAttribute('contenteditable', 'false');
+            });
+            console.log('All inputs disabled for game');
+        }
+
         // Call on visibility change and page load
         document.addEventListener('visibilitychange', clearUndoHistory);
         window.addEventListener('load', clearUndoHistory);
 
-        // iOS 18+ Haptic feedback using checkbox switch trick
-        let hapticCheckbox = null;
-        function triggerIOSHaptic() {
-            // Create hidden checkbox switch if not exists
-            if (!hapticCheckbox) {
-                hapticCheckbox = document.createElement('input');
-                hapticCheckbox.type = 'checkbox';
-                hapticCheckbox.setAttribute('switch', '');
-                hapticCheckbox.style.cssText = 'position:fixed;top:-100px;left:-100px;opacity:0;pointer-events:none;';
-                document.body.appendChild(hapticCheckbox);
+        // Also call every time page becomes visible to clear any accumulated undo
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') {
+                clearUndoHistory();
+                // Extra: blur after a short delay
+                setTimeout(clearUndoHistory, 100);
             }
-            // Toggle it to trigger haptic
-            hapticCheckbox.checked = !hapticCheckbox.checked;
-            hapticCheckbox.dispatchEvent(new Event('change'));
+        });
+
+        // Vibration helper for cross-browser support
+        function vibrate(pattern) {
+            // Try navigator.vibrate first (Android, some iOS)
+            if (navigator.vibrate) {
+                try {
+                    navigator.vibrate(pattern);
+                    return true;
+                } catch (e) {
+                    console.log('Vibration failed:', e);
+                }
+            }
+            return false;
         }
         // =========================================
 
@@ -513,12 +540,12 @@
             isWaiting = false;  // No longer waiting
             isRacing = true;  // Mark that we're in a race for reconnection
 
-            // IMPORTANT: Clear iOS undo history to prevent "Shake to Undo" dialog
+            // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
+            disableInputsForGame();
             clearUndoHistory();
 
-            // Vibrate to signal start (and iOS haptic if available)
-            if (navigator.vibrate) navigator.vibrate(200);
-            triggerIOSHaptic();
+            // Vibrate to signal start
+            vibrate([100, 50, 100]);
         });
 
         socket.on('game_results', (results) => {
@@ -550,13 +577,8 @@
         socket.on('quiz_question', (data) => {
             currentQuestionId = data.question_id;
 
-            // Vibrate 3 times to alert (stronger pattern for Android)
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-
-            // iOS 18+ haptic feedback (multiple triggers for stronger effect)
-            triggerIOSHaptic();
-            setTimeout(() => triggerIOSHaptic(), 150);
-            setTimeout(() => triggerIOSHaptic(), 300);
+            // Vibrate to alert user (strong pattern)
+            vibrate([200, 100, 200, 100, 200]);
 
             // Create quiz overlay
             const overlay = document.createElement('div');

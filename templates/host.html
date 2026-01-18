@@ -951,6 +951,32 @@
             hideTakeoverCountdown();
         });
 
+        // Sync game state for viewers (shows same screen as controller)
+        socket.on('game_state_sync', (data) => {
+            console.log('Game state sync:', data);
+
+            // Update players array
+            players = data.players || [];
+
+            // Update screen based on game status
+            if (data.status === 'RACING') {
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('race-screen').style.display = 'block';
+                document.getElementById('results-screen').style.display = 'none';
+                // Update track with current player positions
+                updateOvalTrack(players, 'race-oval-track');
+            } else if (data.status === 'WAITING') {
+                document.getElementById('setup-screen').style.display = 'block';
+                document.getElementById('race-screen').style.display = 'none';
+                document.getElementById('results-screen').style.display = 'none';
+                updateOvalTrack(players, 'oval-track');
+            } else if (data.status === 'FINISHED') {
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('race-screen').style.display = 'none';
+                document.getElementById('results-screen').style.display = 'block';
+            }
+        });
+
         // Update UI based on HOST control status
         function updateHostControlUI(data) {
             // Remove existing status banner if present

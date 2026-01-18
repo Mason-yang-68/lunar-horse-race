@@ -31,7 +31,7 @@ HOST_TAKEOVER_TIMEOUT = 30  # Seconds before viewers can take over
 # Bot player auto-shake runner
 def bot_runner():
     import time
-    BOT_NAMES = ['🤖小明', '🤖小華', '🤖阿寶', '🤖大雄', '🤖小新', '🤖小丸', '🤖阿呆', '🤖小智', '🤖喵喵']
+    BOT_NAMES = ['💻電腦1', '💻電腦2', '💻電腦3', '💻電腦4', '💻電腦5', '💻電腦6', '💻電腦7', '💻電腦8', '💻電腦9']
     while GAME_STATE['status'] == 'RACING':
         eventlet.sleep(random.uniform(0.3, 0.8))  # Random shake interval
         for bot_id in BOT_PLAYERS:
@@ -190,6 +190,16 @@ def on_host_register():
             'can_takeover': can_takeover,
             'takeover_remaining': remaining,
             'message': '控制者已存在，您目前為觀看者'
+        })
+        
+        # Send current game state to viewer so they see the same screen
+        emit('update_player_list', list(PLAYERS.values()))
+        emit('game_state_sync', {
+            'status': GAME_STATE['status'],
+            'total_prize': GAME_STATE.get('total_prize', 0),
+            'players': [{'id': p['id'], 'name': p['name'], 'progress': p.get('progress', 0), 
+                        'avatar_id': p.get('avatar_id', 'horse1'), 'finished': p.get('finished', False)}
+                       for p in PLAYERS.values()]
         })
 
 @socketio.on('host_takeover')
@@ -383,7 +393,7 @@ def on_add_bots(data):
         return
     
     count = min(int(data.get('count', 1)), 1)  # Add 1 bot at a time
-    BOT_NAMES = ['🤖小明', '🤖小華', '🤖阿寶', '🤖大雄', '🤖小新', '🤖小丸', '🤖阿呆', '🤖小智', '🤖喵喵']
+    BOT_NAMES = ['💻電腦1', '💻電腦2', '💻電腦3', '💻電腦4', '💻電腦5', '💻電腦6', '💻電腦7', '💻電腦8', '💻電腦9']
     
     import uuid
     for i in range(count):
