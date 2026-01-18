@@ -1072,6 +1072,41 @@
             setTimeout(() => startRacingMusic(), 3500);
         });
 
+        // Quiz questions are about to start - show big announcement
+        socket.on('quiz_starting', () => {
+            console.log('Quiz starting!');
+
+            // Create big announcement overlay
+            const announcement = document.createElement('div');
+            announcement.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;pointer-events:none;';
+            announcement.innerHTML = `
+                <div style="font-size:80px;margin-bottom:20px;animation:bounce 0.5s ease infinite;">❓</div>
+                <div style="font-size:48px;font-weight:bold;color:#FFD700;text-shadow:0 0 20px #ff8800,0 0 40px #ff0;">問答時間開始！</div>
+                <div style="font-size:24px;color:white;margin-top:15px;text-shadow:0 0 10px #000;">答對加速 💨 答錯凍結 ❄️</div>
+            `;
+            document.body.appendChild(announcement);
+
+            // Animate in
+            announcement.animate([
+                { opacity: 0, transform: 'translate(-50%,-50%) scale(0.5)' },
+                { opacity: 1, transform: 'translate(-50%,-50%) scale(1.1)' },
+                { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' }
+            ], { duration: 500, easing: 'ease-out' });
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                announcement.animate([
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ], { duration: 500 });
+                setTimeout(() => announcement.remove(), 500);
+            }, 3000);
+
+            // Play a notification sound
+            playTone(880, 'sine', 0.15, 0.15);
+            setTimeout(() => playTone(1174.66, 'sine', 0.15, 0.15), 150);
+        });
+
         // 大型倒數顯示
         function showCountdown() {
             const countdownEl = document.createElement('div');

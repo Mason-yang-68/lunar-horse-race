@@ -373,6 +373,10 @@ def quiz_spawner():
         print(f"Quiz spawner waiting {initial_wait:.1f}s before starting...")
         eventlet.sleep(initial_wait)
     
+    # Notify host that quizzes are about to start
+    socketio.emit('quiz_starting', {}, namespace='/')
+    print("Quiz spawner: Questions are now active!")
+    
     while GAME_STATE['status'] == 'RACING':
         # Dynamic interval based on player count: more players = faster questions
         # With 1-2 players: 4-6s, with 10 players: ~1.2-2s
