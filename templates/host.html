@@ -250,6 +250,131 @@
             }
         }
 
+        /* ================ NEW HORSE EFFECTS ================ */
+
+        /* Question Mark effect - when player is answering */
+        .track-player.answering {
+            z-index: 150 !important;
+        }
+
+        .track-player.answering::before {
+            content: '❓';
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            animation: question-bounce 0.5s infinite;
+            filter: drop-shadow(0 0 10px #FFD700);
+        }
+
+        @keyframes question-bounce {
+
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0) scale(1);
+            }
+
+            50% {
+                transform: translateX(-50%) translateY(-10px) scale(1.2);
+            }
+        }
+
+        /* Jet exhaust effect - when player answers correctly and boosts */
+        .track-player.jet-boost {
+            z-index: 120 !important;
+        }
+
+        .track-player.jet-boost::after {
+            content: '💨💨💨';
+            position: absolute;
+            right: 80%;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 25px;
+            animation: jet-trail 0.3s infinite;
+            opacity: 0.9;
+            letter-spacing: -5px;
+        }
+
+        .track-player.jet-boost img {
+            filter: drop-shadow(0 0 15px #00FF00) brightness(1.3) !important;
+            animation: speed-shake 0.1s infinite;
+        }
+
+        @keyframes jet-trail {
+            0% {
+                opacity: 1;
+                transform: translateY(-50%) translateX(0);
+            }
+
+            100% {
+                opacity: 0.3;
+                transform: translateY(-50%) translateX(-20px);
+            }
+        }
+
+        @keyframes speed-shake {
+
+            0%,
+            100% {
+                transform: scaleX(var(--horse-dir, 1)) rotate(0deg);
+            }
+
+            25% {
+                transform: scaleX(var(--horse-dir, 1)) rotate(-2deg);
+            }
+
+            75% {
+                transform: scaleX(var(--horse-dir, 1)) rotate(2deg);
+            }
+        }
+
+        /* Dizzy effect - when player answers wrong and is frozen */
+        .track-player.dizzy {
+            z-index: 150 !important;
+        }
+
+        .track-player.dizzy::before {
+            content: '😵💫';
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 35px;
+            animation: dizzy-spin 0.8s infinite linear;
+            filter: drop-shadow(0 0 8px #FF6B6B);
+        }
+
+        .track-player.dizzy img {
+            filter: drop-shadow(0 0 10px #FF4444) brightness(0.8) saturate(0.5) !important;
+            animation: dizzy-wobble 0.2s infinite;
+        }
+
+        @keyframes dizzy-spin {
+            0% {
+                transform: translateX(-50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translateX(-50%) rotate(360deg);
+            }
+        }
+
+        @keyframes dizzy-wobble {
+
+            0%,
+            100% {
+                transform: scaleX(var(--horse-dir, 1)) rotate(-5deg);
+            }
+
+            50% {
+                transform: scaleX(var(--horse-dir, 1)) rotate(5deg);
+            }
+        }
+
+        /* ================ END NEW HORSE EFFECTS ================ */
+
         .track-player-name {
             position: absolute;
             bottom: -18px;
@@ -1085,6 +1210,17 @@
         socket.on('quiz_sent', (data) => {
             console.log('Quiz sent to:', data);
 
+            // Add question mark effect to the horse
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+            if (horseEl) {
+                horseEl.classList.add('answering');
+                // Store timeout ID to clear later if answered quickly
+                horseEl.dataset.answeringTimeout = setTimeout(() => {
+                    horseEl.classList.remove('answering');
+                }, 8000); // Quiz timeout is 8 seconds
+            }
+
             // Player-specific colors
             const playerColors = [
                 '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -1106,7 +1242,16 @@
         // Quiz answered - show result on host
         socket.on('quiz_answered', (data) => {
             console.log('Quiz answered:', data);
-            const horseEl = document.querySelector('#track-' + data.player_id);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            // Remove the question mark effect immediately
+            if (horseEl) {
+                horseEl.classList.remove('answering');
+                if (horseEl.dataset.answeringTimeout) {
+                    clearTimeout(parseInt(horseEl.dataset.answeringTimeout));
+                }
+            }
 
             // Create result notification
             const floatingText = document.createElement('div');
@@ -1116,15 +1261,23 @@
                 floatingText.style.color = '#00FF00';
                 floatingText.style.textShadow = '0 0 10px #0f0';
                 floatingText.innerHTML = `✅ ${data.player_name} 答對了! +5%`;
-                if (horseEl) showEffectOnHorse(horseEl, 'food');
+
+                // Add jet boost effect 💨
+                if (horseEl) {
+                    horseEl.classList.add('jet-boost');
+                    setTimeout(() => horseEl.classList.remove('jet-boost'), 2000);
+                    showEffectOnHorse(horseEl, 'food');
+                }
                 playCorrectSound();
             } else {
                 floatingText.style.color = '#FF0000';
                 floatingText.style.textShadow = '0 0 10px #f00';
                 floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 5 秒!`;
+
+                // Add dizzy effect 😵 instead of frozen ❄️
                 if (horseEl) {
-                    horseEl.classList.add('frozen');
-                    setTimeout(() => horseEl.classList.remove('frozen'), 5000);
+                    horseEl.classList.add('dizzy');
+                    setTimeout(() => horseEl.classList.remove('dizzy'), 5000);
                 }
                 playWrongSound();
             }
@@ -1191,6 +1344,14 @@
         // Quiz timeout - player didn't answer in time
         socket.on('quiz_timeout_notify', (data) => {
             console.log('Quiz timeout:', data);
+
+            // Remove question mark effect
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+            if (horseEl) {
+                horseEl.classList.remove('answering');
+            }
+
             const floatingText = document.createElement('div');
             floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#888;text-shadow:0 0 10px #666;z-index:1000;text-align:center;pointer-events:none;';
             floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答`;
