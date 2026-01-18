@@ -168,11 +168,22 @@ def on_host_register():
     
     sid = request.sid
     
+    # Check if old controller is still valid (if disconnect_time is set and exceeded timeout)
+    if HOST_CONTROL['controller_sid'] is not None:
+        if HOST_CONTROL['disconnect_time']:
+            elapsed = time.time() - HOST_CONTROL['disconnect_time']
+            if elapsed >= HOST_TAKEOVER_TIMEOUT:
+                # Old controller timed out, clear it
+                print(f"Old controller timed out after {elapsed:.0f}s, clearing...")
+                HOST_CONTROL['controller_sid'] = None
+                HOST_CONTROL['disconnect_time'] = None
+    
     # Check if there's already a controller
     if HOST_CONTROL['controller_sid'] is None:
         # No controller - become the controller
         HOST_CONTROL['controller_sid'] = sid
         HOST_CONTROL['disconnect_time'] = None
+        HOST_CONTROL['viewers'] = []  # Clear old viewers list
         print(f"HOST controller registered: {sid[:8]}...")
         emit('host_status', {
             'is_controller': True,

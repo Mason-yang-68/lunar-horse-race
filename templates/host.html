@@ -735,6 +735,22 @@
             }
         }
 
+        /* Leader indicator */
+        .track-player.is-leader::after {
+            content: '👑';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            animation: bounce 1s infinite alternate;
+            z-index: 10;
+        }
+
+        .track-player.is-leader img {
+            filter: drop-shadow(0 0 5px gold);
+        }
+
         /* Effect pulse animation for horse indicators */
         @keyframes effect-pulse {
 
@@ -1178,6 +1194,8 @@
         }
 
         // Update players on oval track
+        let currentLeaderId = null;
+
         function updateOvalTrack(playerList, trackId = 'oval-track') {
             const track = document.getElementById(trackId);
             if (!track) return;
@@ -1185,15 +1203,32 @@
             // Clear existing players
             track.querySelectorAll('.track-player').forEach(el => el.remove());
 
+            // Track leader change logic
+            let maxProgress = -1;
+            let newLeaderId = null;
+
             playerList.forEach((p, index) => {
-                const pos = getOvalPosition(index, playerList.length, p.progress || 0);
-                const direction = getHorseDirection(p.progress || 0);
+                const progress = p.progress || 0;
+
+                // Find leader
+                if (progress > maxProgress && progress > 0 && progress < 100) {
+                    maxProgress = progress;
+                    newLeaderId = p.id;
+                }
+
+                const pos = getOvalPosition(index, playerList.length, progress);
+                const direction = getHorseDirection(progress);
 
                 const playerDiv = document.createElement('div');
                 playerDiv.className = 'track-player';
                 playerDiv.id = 'track-' + p.id;
                 playerDiv.style.left = pos.x + '%';
                 playerDiv.style.top = pos.y + '%';
+
+                // Mark leader with a crown or effect if needed
+                if (p.id === newLeaderId && trackId === 'race-oval-track' && playerList.length > 1) {
+                    playerDiv.classList.add('is-leader');
+                }
 
                 const img = document.createElement('img');
                 img.src = '/static/images/' + (p.avatar_id || 'horse1') + '.png';
@@ -1205,10 +1240,31 @@
                 nameTag.className = 'track-player-name';
                 nameTag.innerText = p.name;
 
+                // Add running dust effect occasionally for leader
+                if (p.id === newLeaderId && trackId === 'race-oval-track' && Math.random() < 0.1) {
+                    createDustEffect(parseFloat(pos.x), parseFloat(pos.y), '#FFD700');
+                }
+
                 playerDiv.appendChild(img);
                 playerDiv.appendChild(nameTag);
                 track.appendChild(playerDiv);
             });
+
+            // Trigger cheer sound if leader changed
+            if (trackId === 'race-oval-track' && newLeaderId && newLeaderId !== currentLeaderId) {
+                // Only cheer if significant progress (>5%) and more than 1 player
+                if (maxProgress > 5 && playerList.length > 1) {
+                    console.log(`Leader changed to ${newLeaderId}, cheering!`);
+                    playCheerSound();
+
+                    // Show "New Leader!" text effect
+                    const leader = playerList.find(p => p.id === newLeaderId);
+                    if (leader) {
+                        // Ideally show a temporary text
+                    }
+                }
+                currentLeaderId = newLeaderId;
+            }
         }
 
 
@@ -2057,11 +2113,26 @@
             var script = document.createElement('script');
             script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
             script.onload = () => {
-                confetti({
-                    particleCount: 150,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
+                var duration = 3000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+                function randomInRange(min, max) {
+                    return Math.random() * (max - min) + min;
+                }
+
+                var interval = setInterval(function () {
+                    var timeLeft = animationEnd - Date.now();
+
+                    if (timeLeft <= 0) {
+                        return clearInterval(interval);
+                    }
+
+                    var particleCount = 50 * (timeLeft / duration);
+                    // since particles fall down, start a bit higher than random
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+                }, 250);
             };
             document.head.appendChild(script);
         }
