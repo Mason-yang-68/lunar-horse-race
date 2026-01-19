@@ -8,7 +8,7 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_horse_year'
-socketio = SocketIO(app, async_mode='eventlet', ping_timeout=10, ping_interval=5)
+socketio = SocketIO(app, async_mode='eventlet')
 
 # State
 PLAYERS = {} # { sid: { name: "Name", score: 0, avatar: "horse1", finished: False } }
