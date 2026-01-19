@@ -100,6 +100,7 @@ def bot_runner():
                     
                     if finished_count >= len(PLAYERS):
                         # All finished
+                        print(f"BOT: All {len(PLAYERS)} players finished - calculating results!")
                         from server_render import on_calculate_results
                         socketio.start_background_task(on_calculate_results)
                 
@@ -917,7 +918,9 @@ def on_shake(data):
         
         # Check if ALL finished
         total_players = len(PLAYERS)
+        print(f"Player {PLAYERS[request.sid]['name']} finished! Count: {finished_count}/{total_players}")
         if finished_count >= total_players:
+            print(f"All {total_players} players finished - calculating results!")
             on_calculate_results()
     
     emit('player_update', {
