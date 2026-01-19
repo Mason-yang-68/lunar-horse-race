@@ -168,57 +168,49 @@ def on_host_register():
     
     sid = request.sid
     
-    # Check if old controller is still valid (if disconnect_time is set and exceeded timeout)
-    if HOST_CONTROL['controller_sid'] is not None:
-        if HOST_CONTROL['disconnect_time']:
-            elapsed = time.time() - HOST_CONTROL['disconnect_time']
-            if elapsed >= HOST_TAKEOVER_TIMEOUT:
-                # Old controller timed out, clear it
-                print(f"Old controller timed out after {elapsed:.0f}s, clearing...")
-                HOST_CONTROL['controller_sid'] = None
-                HOST_CONTROL['disconnect_time'] = None
+    # Check if old controller is still valid
+    old_controller = HOST_CONTROL['controller_sid']
     
-    # Check if there's already a controller
-    if HOST_CONTROL['controller_sid'] is None:
-        # No controller - become the controller
+    # Case 1: No controller yet, or old controller has disconnected
+    # (disconnect_time is set when controller disconnects)
+    should_become_controller = False
+    
+    if old_controller is None:
+        # No controller exists
+        should_become_controller = True
+        print(f"No controller exists, new HOST will be controller")
+    elif old_controller == sid:
+        # Same sid reconnected (unlikely but handle it)
+        should_become_controller = True
+        print(f"Same HOST controller reconnected")
+    elif HOST_CONTROL['disconnect_time'] is not None:
+        # Old controller has disconnected - allow immediate takeover
+        # (This happens when user refreshes page - old sid disconnects, new sid connects)
+        should_become_controller = True
+        print(f"Old controller disconnected, new HOST takes over immediately")
+        # Clear old viewers since they might be stale too
+        HOST_CONTROL['viewers'] = []
+    
+    if should_become_controller:
+        # Become the controller
         HOST_CONTROL['controller_sid'] = sid
         HOST_CONTROL['disconnect_time'] = None
-        HOST_CONTROL['viewers'] = []  # Clear old viewers list
+        HOST_CONTROL['viewers'] = [v for v in HOST_CONTROL['viewers'] if v != sid]
         print(f"HOST controller registered: {sid[:8]}...")
         emit('host_status', {
             'is_controller': True,
             'message': '您是主控制者'
         })
-    elif HOST_CONTROL['controller_sid'] == sid:
-        # Reconnected as the same controller
-        HOST_CONTROL['disconnect_time'] = None
-        print(f"HOST controller reconnected: {sid[:8]}...")
-        emit('host_status', {
-            'is_controller': True,
-            'message': '已重新連線為主控制者'
-        })
-        # Notify viewers that controller is back
-        socketio.emit('host_controller_online', {}, namespace='/')
     else:
-        # Already has a controller - become a viewer
+        # Controller is still connected - become a viewer
         if sid not in HOST_CONTROL['viewers']:
             HOST_CONTROL['viewers'].append(sid)
-        print(f"HOST viewer registered: {sid[:8]}...")
-        
-        # Check if controller is offline and can be taken over
-        can_takeover = False
-        remaining = 0
-        if HOST_CONTROL['disconnect_time']:
-            elapsed = time.time() - HOST_CONTROL['disconnect_time']
-            if elapsed >= HOST_TAKEOVER_TIMEOUT:
-                can_takeover = True
-            else:
-                remaining = int(HOST_TAKEOVER_TIMEOUT - elapsed)
+        print(f"HOST viewer registered: {sid[:8]}... (controller: {old_controller[:8]}...)")
         
         emit('host_status', {
             'is_controller': False,
-            'can_takeover': can_takeover,
-            'takeover_remaining': remaining,
+            'can_takeover': False,
+            'takeover_remaining': 0,
             'message': '控制者已存在，您目前為觀看者'
         })
         
