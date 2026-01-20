@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import random
 import os
+from themes import get_theme, get_questions, get_all_themes, DEFAULT_THEME
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_horse_year'
@@ -15,7 +16,8 @@ PLAYERS = {} # { sid: { name: "Name", score: 0, avatar: "horse1", finished: Fals
 BOT_PLAYERS = []  # List of bot player IDs
 GAME_STATE = {
     'status': 'WAITING', # WAITING, RACING, FINISHED
-    'total_prize': 0
+    'total_prize': 0,
+    'theme': DEFAULT_THEME  # Current theme ID
 }
 ITEMS = {} # { item_id: { type: 'food'|'hardware', position: {x, y}, active: True } }
 ACTIVE_EFFECTS = {} # { sid: { type: 'food'|'hardware', end_time: timestamp } }
@@ -122,7 +124,37 @@ def play():
 def tutorial():
     return render_template('tutorial.html')
 
+@app.route('/api/themes')
+def api_themes():
+    """Get list of available themes"""
+    return jsonify(get_all_themes())
+
 # --- Socket Events ---
+
+@socketio.on('set_theme')
+def on_set_theme(data):
+    """Set the current theme"""
+    theme_id = data.get('theme_id', DEFAULT_THEME)
+    theme = get_theme(theme_id)
+    GAME_STATE['theme'] = theme_id
+    print(f"Theme set to: {theme['name']} ({theme_id})")
+    
+    # Broadcast theme change to all clients
+    emit('theme_changed', {
+        'theme_id': theme_id,
+        'name': theme['name'],
+        'background': theme.get('background')
+    }, broadcast=True)
+
+@socketio.on('get_theme')
+def on_get_theme():
+    """Get current theme info"""
+    theme = get_theme(GAME_STATE['theme'])
+    emit('current_theme', {
+        'theme_id': theme['id'],
+        'name': theme['name'],
+        'background': theme.get('background')
+    })
 
 @socketio.on('connect')
 def on_connect():
@@ -644,14 +676,19 @@ def quiz_spawner():
         if player_id not in PLAYER_QUESTIONS:
             PLAYER_QUESTIONS[player_id] = []
         
+        # Get questions based on current theme
+        current_theme = GAME_STATE.get('theme', DEFAULT_THEME)
+        theme_questions = get_questions(current_theme)
+        
         # Pick a question they haven't seen (or random if all seen)
-        available_qs = [q for q in QUESTIONS if q['id'] not in PLAYER_QUESTIONS[player_id]]
+        available_qs = [i for i, q in enumerate(theme_questions) if i not in PLAYER_QUESTIONS[player_id]]
         if not available_qs:
-            available_qs = QUESTIONS  # Reset if all used
+            available_qs = list(range(len(theme_questions)))  # Reset if all used
             PLAYER_QUESTIONS[player_id] = []
         
-        question = random.choice(available_qs)
-        PLAYER_QUESTIONS[player_id].append(question['id'])
+        q_index = random.choice(available_qs)
+        question = theme_questions[q_index]
+        PLAYER_QUESTIONS[player_id].append(q_index)
         
         # Randomize answer order
         original_options = question['options']

@@ -825,6 +825,14 @@
                 <div class="player-count-badge">
                     已加入: <span id="player-count">0</span> 人
                 </div>
+                <!-- Theme switcher (subtle design) -->
+                <div id="theme-switcher" style="margin-top:10px;font-size:12px;opacity:0.7;">
+                    <select id="theme-select" onchange="switchTheme(this.value)"
+                        style="padding:5px 10px;border-radius:5px;border:1px solid #666;background:#333;color:#ccc;font-size:12px;cursor:pointer;">
+                        <option value="hashimae">橋前駅版</option>
+                        <option value="mingchang">明昌五金行版</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Oval Track Preview Section -->
@@ -2059,6 +2067,51 @@
         socket.on('reset_game_client', () => {
             location.reload();
         });
+
+        // ========= Theme Switching =========
+        let currentTheme = 'hashimae';
+
+        function switchTheme(themeId) {
+            if (!isHostController) {
+                alert('觀看模式無法切換主題');
+                document.getElementById('theme-select').value = currentTheme;
+                return;
+            }
+            socket.emit('set_theme', { theme_id: themeId });
+        }
+
+        socket.on('theme_changed', (data) => {
+            console.log('Theme changed to:', data.name);
+            currentTheme = data.theme_id;
+            document.getElementById('theme-select').value = data.theme_id;
+
+            // Update background based on theme
+            if (data.background) {
+                document.body.style.backgroundImage = `url(${data.background})`;
+                document.body.style.backgroundSize = 'cover';
+                document.body.style.backgroundPosition = 'center';
+                document.body.style.backgroundAttachment = 'fixed';
+            } else {
+                document.body.style.backgroundImage = '';
+            }
+        });
+
+        socket.on('current_theme', (data) => {
+            currentTheme = data.theme_id;
+            document.getElementById('theme-select').value = data.theme_id;
+            if (data.background) {
+                document.body.style.backgroundImage = `url(${data.background})`;
+                document.body.style.backgroundSize = 'cover';
+                document.body.style.backgroundPosition = 'center';
+                document.body.style.backgroundAttachment = 'fixed';
+            }
+        });
+
+        // Request current theme on load
+        socket.on('connect', () => {
+            socket.emit('get_theme');
+        });
+        // ===================================
 
         function startRace() {
             // Check if there are any players
