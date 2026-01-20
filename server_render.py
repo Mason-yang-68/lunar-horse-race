@@ -143,7 +143,7 @@ def on_set_theme(data):
     emit('theme_changed', {
         'theme_id': theme_id,
         'name': theme['name'],
-        'background': theme.get('background')
+        'track_background': theme.get('track_background')
     }, broadcast=True)
 
 @socketio.on('get_theme')
@@ -153,7 +153,7 @@ def on_get_theme():
     emit('current_theme', {
         'theme_id': theme['id'],
         'name': theme['name'],
-        'background': theme.get('background')
+        'track_background': theme.get('track_background')
     })
 
 @socketio.on('connect')

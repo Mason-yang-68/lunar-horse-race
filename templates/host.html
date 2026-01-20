@@ -2085,27 +2085,31 @@
             currentTheme = data.theme_id;
             document.getElementById('theme-select').value = data.theme_id;
 
-            // Update background based on theme
-            if (data.background) {
-                document.body.style.backgroundImage = `url(${data.background})`;
-                document.body.style.backgroundSize = 'cover';
-                document.body.style.backgroundPosition = 'center';
-                document.body.style.backgroundAttachment = 'fixed';
-            } else {
-                document.body.style.backgroundImage = '';
-            }
+            // Update track background based on theme
+            applyTrackBackground(data.track_background);
         });
 
         socket.on('current_theme', (data) => {
             currentTheme = data.theme_id;
             document.getElementById('theme-select').value = data.theme_id;
-            if (data.background) {
-                document.body.style.backgroundImage = `url(${data.background})`;
-                document.body.style.backgroundSize = 'cover';
-                document.body.style.backgroundPosition = 'center';
-                document.body.style.backgroundAttachment = 'fixed';
-            }
+            applyTrackBackground(data.track_background);
         });
+
+        function applyTrackBackground(trackBg) {
+            const tracks = ['oval-track', 'race-oval-track'];
+            tracks.forEach(trackId => {
+                const track = document.getElementById(trackId);
+                if (track) {
+                    if (trackBg) {
+                        track.style.backgroundImage = `url(${trackBg})`;
+                        track.style.backgroundSize = 'cover';
+                        track.style.backgroundPosition = 'center';
+                    } else {
+                        track.style.backgroundImage = '';
+                    }
+                }
+            });
+        }
 
         // Request current theme on load
         socket.on('connect', () => {

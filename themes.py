@@ -1,11 +1,11 @@
 # Theme configurations for the horse racing game
-# Each theme has: name, background, questions
+# Each theme has: name, track_background (for oval track), questions
 
 THEMES = {
     'hashimae': {
         'id': 'hashimae',
         'name': '橋前駅版',
-        'background': None,  # Use default CSS gradient
+        'track_background': None,  # Use default track style
         'questions': [
             {"question": "馬年是十二生肖的第幾位？", "options": ["第六位", "第七位", "第八位"], "answer": 1},
             {"question": "世界上速度最快的馬是？", "options": ["純血馬", "阿拉伯馬", "蒙古馬"], "answer": 0},
@@ -22,7 +22,7 @@ THEMES = {
     'mingchang': {
         'id': 'mingchang',
         'name': '明昌五金行版',
-        'background': '/static/images/mingchang_bg.jpg',
+        'track_background': '/static/images/mingchang_track.jpg',  # Custom track image
         'questions': [
             {"question": "明昌五金行位於台南哪一區？", "options": ["仁德區", "歸仁區", "關廟區"], "answer": 1},
             {"question": "五金行的「五金」原本是指？", "options": ["金銀銅鐵錫", "鉀鈣鈉鎂鋁", "鋼鐵雷神"], "answer": 0},
