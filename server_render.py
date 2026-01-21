@@ -54,7 +54,7 @@ def bot_runner():
     BOT_NAMES = ['小明', '阿華', '小美', '阿寶', '小強', '小花', '阿傑', '小玉', '阿龍']
     TASK_FLAGS['bot_running'] = True
     while GAME_STATE['status'] == 'RACING' and TASK_FLAGS['bot_running']:
-        eventlet.sleep(random.uniform(0.3, 0.8))  # Random shake interval
+        eventlet.sleep(random.uniform(0.1, 0.3))  # Faster shake interval for testing
         for bot_id in BOT_PLAYERS:
             if bot_id in PLAYERS and not PLAYERS[bot_id].get('finished'):
                 player = PLAYERS[bot_id]
@@ -79,9 +79,9 @@ def bot_runner():
                     player['answering_until'] = 0
                     continue
                 
-                # Simulate shake
-                intensity = random.randint(20, 50)
-                base_move = 0.0165  # Match player shake speed (5x faster)
+                # Simulate shake - faster for testing
+                intensity = random.randint(30, 60)
+                base_move = 0.05  # Much faster for testing (was 0.0165)
                 bonus = (intensity / 600.0)
                 move_amount = base_move + bonus
                 
