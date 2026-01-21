@@ -1252,7 +1252,7 @@
                 }
 
                 const img = document.createElement('img');
-                img.src = '/static/images/' + (p.avatar_id || 'horse1') + '.png';
+                img.src = getAvatarPath(p.avatar_id);
                 img.onerror = function () { this.src = '/static/images/horse1.png'; };
                 // Flip horse based on direction (scaleX)
                 img.style.transform = 'scaleX(' + direction + ')';
@@ -2087,13 +2087,31 @@
 
             // Update track background based on theme
             applyTrackBackground(data.track_background);
+            // Update avatar folder for correct image paths
+            currentAvatarFolder = data.avatar_folder || '';
         });
 
         socket.on('current_theme', (data) => {
             currentTheme = data.theme_id;
             document.getElementById('theme-select').value = data.theme_id;
             applyTrackBackground(data.track_background);
+            currentAvatarFolder = data.avatar_folder || '';
         });
+
+        // Track current avatar folder for theme
+        let currentAvatarFolder = '';
+
+        // Get correct path for avatar image based on current theme
+        function getAvatarPath(avatarId) {
+            if (!avatarId) avatarId = 'horse1';
+
+            // If there's a theme-specific folder, use it
+            if (currentAvatarFolder) {
+                return '/static/images/' + currentAvatarFolder + '/' + avatarId + '.png';
+            }
+            // Default path
+            return '/static/images/' + avatarId + '.png';
+        }
 
         function applyTrackBackground(trackBg) {
             const tracks = ['oval-track', 'race-oval-track'];
