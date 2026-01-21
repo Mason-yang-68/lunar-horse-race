@@ -1202,9 +1202,10 @@
 
         // Define waypoints along the actual track path
         // Track shape: STADIUM (two straight sections + two semicircular ends)
-        // Adjusted v7 - more expansion + START/FINISH aligned to text
-        const trackWaypoints = [
-            { x: 63, y: 52 },   // 0: START - aligned with START text on track
+
+        // 橋前駅版 waypoints (original)
+        const hashimaeWaypoints = [
+            { x: 63, y: 52 },   // 0: START
             { x: 82, y: 44 },   // 1: right curve - lower part
             { x: 90, y: 32 },   // 2: right curve - middle (rightmost)
             { x: 82, y: 20 },   // 3: right curve - upper part
@@ -1213,21 +1214,46 @@
             { x: 14, y: 20 },   // 6: left curve - upper part
             { x: 8, y: 32 },    // 7: left curve - middle (leftmost)
             { x: 14, y: 44 },   // 8: left curve - lower part
-            { x: 28, y: 52 },   // 9: FINISH - aligned with FINISH text on track
+            { x: 28, y: 52 },   // 9: FINISH
         ];
+
+        // 明昌五金行版 waypoints (0,4,5,9 moved up by 5%)
+        const mingchangWaypoints = [
+            { x: 63, y: 47 },   // 0: START - moved up 5%
+            { x: 82, y: 44 },   // 1: right curve - lower part
+            { x: 90, y: 32 },   // 2: right curve - middle (rightmost)
+            { x: 82, y: 20 },   // 3: right curve - upper part
+            { x: 68, y: 7 },    // 4: top straight - right end - moved up 5%
+            { x: 32, y: 7 },    // 5: top straight - left end - moved up 5%
+            { x: 14, y: 20 },   // 6: left curve - upper part
+            { x: 8, y: 32 },    // 7: left curve - middle (leftmost)
+            { x: 14, y: 44 },   // 8: left curve - lower part
+            { x: 28, y: 47 },   // 9: FINISH - moved up 5%
+        ];
+
+        // Get current theme's waypoints
+        function getTrackWaypoints() {
+            return currentTheme === 'mingchang' ? mingchangWaypoints : hashimaeWaypoints;
+        }
+
+        // Legacy reference for compatibility
+        const trackWaypoints = hashimaeWaypoints;
 
         // DEBUG: Show track path visualization
         function showDebugPath(trackId = 'race-oval-track') {
             const track = document.getElementById(trackId);
             if (!track) return;
 
+            // Get theme-specific waypoints
+            const waypoints = getTrackWaypoints();
+
             // Remove existing debug elements
             track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
 
             // Draw lines between waypoints
-            for (let i = 0; i < trackWaypoints.length - 1; i++) {
-                const p1 = trackWaypoints[i];
-                const p2 = trackWaypoints[i + 1];
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                const p1 = waypoints[i];
+                const p2 = waypoints[i + 1];
 
                 const line = document.createElement('div');
                 line.className = 'debug-line';
@@ -1262,7 +1288,7 @@
                     top: ${p.y}%;
                     width: 25px;
                     height: 25px;
-                    background: ${i === 0 ? '#00ff00' : i === trackWaypoints.length - 1 ? '#ff0000' : '#ffff00'};
+                    background: ${i === 0 ? '#00ff00' : i === waypoints.length - 1 ? '#ff0000' : '#ffff00'};
                     border: 2px solid #000;
                     border-radius: 50%;
                     transform: translate(-50%, -50%);
@@ -1303,8 +1329,11 @@
             // Clamp progress to 0-100
             progress = Math.max(0, Math.min(100, progress));
 
+            // Get theme-specific waypoints
+            const waypoints = getTrackWaypoints();
+
             // Calculate which segment of the path we're on
-            const numSegments = trackWaypoints.length - 1;
+            const numSegments = waypoints.length - 1;
             const progressPerSegment = 100 / numSegments;
 
             // Find current segment index
@@ -1318,10 +1347,10 @@
 
             // Get 4 points for Catmull-Rom interpolation
             // Use clamping for edge cases (no wrapping since it's not a closed loop)
-            const p0 = trackWaypoints[Math.max(0, segmentIndex - 1)];
-            const p1 = trackWaypoints[segmentIndex];
-            const p2 = trackWaypoints[segmentIndex + 1];
-            const p3 = trackWaypoints[Math.min(trackWaypoints.length - 1, segmentIndex + 2)];
+            const p0 = waypoints[Math.max(0, segmentIndex - 1)];
+            const p1 = waypoints[segmentIndex];
+            const p2 = waypoints[segmentIndex + 1];
+            const p3 = waypoints[Math.min(waypoints.length - 1, segmentIndex + 2)];
 
             // Catmull-Rom spline interpolation for smooth curves
             let x = catmullRom(p0.x, p1.x, p2.x, p3.x, t);
