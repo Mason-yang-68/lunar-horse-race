@@ -782,6 +782,39 @@
 </head>
 
 <body>
+    <!-- Password Login Overlay -->
+    <div id="password-overlay"
+        style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:99999;display:flex;flex-direction:column;justify-content:center;align-items:center;">
+        <div
+            style="background:linear-gradient(145deg,#2a2a2a,#1a1a1a);padding:40px;border-radius:20px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+            <h2 style="color:#FFD700;margin-bottom:20px;">🔐 請輸入主控密碼</h2>
+            <p style="color:#aaa;margin-bottom:20px;font-size:14px;">輸入密碼可成為主控者並選擇主題<br>若不輸入可直接進入觀看模式</p>
+
+            <input type="password" id="host-password" placeholder="輸入密碼..."
+                style="padding:15px;font-size:18px;border-radius:10px;border:2px solid #555;background:#333;color:white;width:200px;text-align:center;margin-bottom:20px;">
+
+            <div style="margin-bottom:20px;">
+                <label style="color:#ccc;margin-right:10px;">選擇主題:</label>
+                <select id="password-theme-select"
+                    style="padding:10px;border-radius:8px;background:#444;color:white;border:1px solid #666;">
+                    <option value="hashimae">橋前駅版</option>
+                    <option value="mingchang">明昌五金行版</option>
+                </select>
+            </div>
+
+            <div style="display:flex;gap:15px;justify-content:center;">
+                <button onclick="submitPassword()"
+                    style="padding:15px 30px;font-size:16px;background:linear-gradient(145deg,#28a745,#1e7e34);color:white;border:none;border-radius:10px;cursor:pointer;">
+                    ✅ 確認進入
+                </button>
+                <button onclick="enterAsViewer()"
+                    style="padding:15px 30px;font-size:16px;background:linear-gradient(145deg,#6c757d,#5a6268);color:white;border:none;border-radius:10px;cursor:pointer;">
+                    👁️ 觀看模式
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Floating Clouds with New Year Greetings -->
     <div class="cloud cloud-1">🐴 馬到成功</div>
     <div class="cloud cloud-2">🧧 萬馬奔騰</div>
@@ -967,6 +1000,39 @@
             socket.emit('host_register');
         });
 
+        // PASSWORD VERIFICATION
+        const CORRECT_PASSWORD = '321';
+        let passwordVerified = false;
+
+        function submitPassword() {
+            const password = document.getElementById('host-password').value;
+            const selectedTheme = document.getElementById('password-theme-select').value;
+
+            if (password === CORRECT_PASSWORD) {
+                passwordVerified = true;
+                document.getElementById('password-overlay').style.display = 'none';
+
+                // Set the selected theme
+                socket.emit('set_theme', { theme_id: selectedTheme });
+                document.getElementById('theme-select').value = selectedTheme;
+
+                console.log('Password verified! Controller mode, theme:', selectedTheme);
+            } else {
+                alert('密碼錯誤！請重新輸入或選擇觀看模式');
+            }
+        }
+
+        function enterAsViewer() {
+            passwordVerified = false;
+            document.getElementById('password-overlay').style.display = 'none';
+            console.log('Entering as viewer');
+        }
+
+        // Allow Enter key to submit password
+        document.getElementById('host-password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') submitPassword();
+        });
+
         // Handle HOST status response
         socket.on('host_status', (data) => {
             console.log('HOST status:', data);
@@ -1149,6 +1215,77 @@
             { x: 14, y: 44 },   // 8: left curve - lower part
             { x: 28, y: 52 },   // 9: FINISH - aligned with FINISH text on track
         ];
+
+        // DEBUG: Show track path visualization
+        function showDebugPath(trackId = 'race-oval-track') {
+            const track = document.getElementById(trackId);
+            if (!track) return;
+
+            // Remove existing debug elements
+            track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
+
+            // Draw lines between waypoints
+            for (let i = 0; i < trackWaypoints.length - 1; i++) {
+                const p1 = trackWaypoints[i];
+                const p2 = trackWaypoints[i + 1];
+
+                const line = document.createElement('div');
+                line.className = 'debug-line';
+
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                line.style.cssText = `
+                    position: absolute;
+                    left: ${p1.x}%;
+                    top: ${p1.y}%;
+                    width: ${length}%;
+                    height: 3px;
+                    background: rgba(255, 0, 0, 0.8);
+                    transform-origin: left center;
+                    transform: rotate(${angle}deg);
+                    z-index: 1000;
+                `;
+                track.appendChild(line);
+            }
+
+            // Draw waypoint circles with numbers
+            trackWaypoints.forEach((p, i) => {
+                const point = document.createElement('div');
+                point.className = 'debug-point';
+                point.innerText = i;
+                point.style.cssText = `
+                    position: absolute;
+                    left: ${p.x}%;
+                    top: ${p.y}%;
+                    width: 25px;
+                    height: 25px;
+                    background: ${i === 0 ? '#00ff00' : i === trackWaypoints.length - 1 ? '#ff0000' : '#ffff00'};
+                    border: 2px solid #000;
+                    border-radius: 50%;
+                    transform: translate(-50%, -50%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    font-weight: bold;
+                    color: #000;
+                    z-index: 1001;
+                `;
+                track.appendChild(point);
+            });
+
+            console.log('Debug path shown. Green=START, Red=FINISH');
+        }
+
+        function hideDebugPath(trackId = 'race-oval-track') {
+            const track = document.getElementById(trackId);
+            if (track) {
+                track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
+            }
+        }
 
         // Catmull-Rom spline interpolation for smooth curves
         function catmullRom(p0, p1, p2, p3, t) {
