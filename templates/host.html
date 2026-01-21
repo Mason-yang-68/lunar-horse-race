@@ -2238,15 +2238,18 @@
         // Track current avatar folder for theme
         let currentAvatarFolder = '';
 
-        // Get correct path for avatar image based on current theme
+        // Get correct path for avatar image based on avatar_id prefix
+        // This handles mixed players (some joined with hashimae avatars, some with mingchang)
         function getAvatarPath(avatarId) {
             if (!avatarId) avatarId = 'horse1';
 
-            // If there's a theme-specific folder, use it
-            if (currentAvatarFolder) {
-                return '/static/images/' + currentAvatarFolder + '/' + avatarId + '.png';
+            // Determine folder based on avatar_id prefix, NOT current theme
+            // hw_horse* avatars are in mingchang folder
+            // horse* avatars are in root images folder
+            if (avatarId.startsWith('hw_horse')) {
+                return '/static/images/mingchang/' + avatarId + '.png';
             }
-            // Default path
+            // Default: regular horse avatars in root folder
             return '/static/images/' + avatarId + '.png';
         }
 
