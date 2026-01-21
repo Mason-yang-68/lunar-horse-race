@@ -820,29 +820,74 @@
             location.reload();
         });
 
-        // Build avatar grid
-        const avatarContainer = document.getElementById('avatar-grid');
-        for (let i = 1; i <= 10; i++) {
-            let div = document.createElement('div');
-            div.className = 'avatar-option';
+        // Current theme avatar settings
+        let currentAvatarFolder = '';  // empty for default
+        let currentAvatarPrefix = 'horse';
 
-            let img = document.createElement('img');
-            img.src = '/static/images/horse' + i + '.png';
-            img.style.width = '100%';
-            img.style.height = 'auto';
-            img.style.pointerEvents = 'none';
+        // Build avatar grid based on theme
+        function buildAvatarGrid(folder, prefix) {
+            currentAvatarFolder = folder || '';
+            currentAvatarPrefix = prefix || 'horse';
 
-            div.appendChild(img);
-            div.dataset.id = 'horse' + i;
+            const avatarContainer = document.getElementById('avatar-grid');
+            avatarContainer.innerHTML = '';  // Clear existing
 
-            div.onclick = function () {
-                document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
-                this.classList.add('selected');
-                document.getElementById('selected-avatar').value = this.dataset.id;
-            };
-            if (i === 1) div.classList.add('selected');
-            avatarContainer.appendChild(div);
+            for (let i = 1; i <= 10; i++) {
+                let div = document.createElement('div');
+                div.className = 'avatar-option';
+
+                let img = document.createElement('img');
+                // Build path: /static/images/[folder/]prefix#.png
+                if (currentAvatarFolder) {
+                    img.src = '/static/images/' + currentAvatarFolder + '/' + currentAvatarPrefix + i + '.png';
+                } else {
+                    img.src = '/static/images/' + currentAvatarPrefix + i + '.png';
+                }
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.pointerEvents = 'none';
+
+                div.appendChild(img);
+                div.dataset.id = currentAvatarPrefix + i;
+
+                div.onclick = function () {
+                    document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+                    this.classList.add('selected');
+                    document.getElementById('selected-avatar').value = this.dataset.id;
+                };
+                if (i === 1) {
+                    div.classList.add('selected');
+                    document.getElementById('selected-avatar').value = currentAvatarPrefix + '1';
+                }
+                avatarContainer.appendChild(div);
+            }
         }
+
+        // Build initial avatar grid (default theme)
+        buildAvatarGrid('', 'horse');
+
+        // Listen for theme changes to update avatars
+        socket.on('theme_changed', (data) => {
+            console.log('Client theme changed:', data.name);
+            if (data.avatar_folder || data.avatar_prefix) {
+                buildAvatarGrid(data.avatar_folder, data.avatar_prefix);
+            } else {
+                buildAvatarGrid('', 'horse');
+            }
+        });
+
+        // Get current theme on connect
+        socket.on('current_theme', (data) => {
+            console.log('Current theme:', data.name);
+            if (data.avatar_folder || data.avatar_prefix) {
+                buildAvatarGrid(data.avatar_folder, data.avatar_prefix);
+            }
+        });
+
+        // Request theme on connect
+        socket.on('connect', () => {
+            socket.emit('get_theme');
+        });
 
         function joinGame() {
             myName = document.getElementById('player-name').value;
