@@ -288,9 +288,9 @@
         .track-player.jet-boost::after {
             content: '💨💨💨';
             position: absolute;
-            /* Dynamic position based on --jet-dir variable (default: left) */
-            left: var(--jet-dir, left)=='left' ? auto: 80%;
-            right: var(--jet-dir, left)=='right' ? auto: 80%;
+            /* Default: jet on right (horse moving left) */
+            right: 80%;
+            left: auto;
             top: 50%;
             transform: translateY(-50%);
             font-size: 25px;
