@@ -23,6 +23,8 @@ THEMES = {
         'id': 'mingchang',
         'name': '明昌五金行版',
         'track_background': '/static/images/mingchang_track.jpg',  # Custom track image
+        'avatar_folder': 'mingchang',  # Subfolder in static/images/
+        'avatar_prefix': 'hw_horse',   # Prefix for horse images (hw_horse1.png, etc.)
         'questions': [
             {"question": "明昌五金行位於台南哪一區？", "options": ["仁德區", "歸仁區", "關廟區"], "answer": 1},
             {"question": "五金行的「五金」原本是指？", "options": ["金銀銅鐵錫", "鉀鈣鈉鎂鋁", "鋼鐵雷神"], "answer": 0},
