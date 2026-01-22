@@ -683,6 +683,7 @@ def quiz_spawner():
         # Get questions based on current theme
         current_theme = GAME_STATE.get('theme', DEFAULT_THEME)
         theme_questions = get_questions(current_theme)
+        print(f"[QUIZ] Using theme: {current_theme}, total questions: {len(theme_questions)}")
         
         # Pick a question they haven't seen (or random if all seen)
         available_qs = [i for i, q in enumerate(theme_questions) if i not in PLAYER_QUESTIONS[player_id]]
