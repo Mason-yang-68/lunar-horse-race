@@ -1396,14 +1396,18 @@
             let maxProgress = -1;
             let newLeaderId = null;
 
-            playerList.forEach((p, index) => {
+            // First pass: Determine the actual leader
+            playerList.forEach(p => {
                 const progress = p.progress || 0;
-
-                // Find leader
                 if (progress > maxProgress && progress > 0 && progress < 100) {
                     maxProgress = progress;
                     newLeaderId = p.id;
                 }
+            });
+
+            playerList.forEach((p, index) => {
+                const progress = p.progress || 0;
+                // Leader calculation moved to pre-pass
 
                 const pos = getOvalPosition(index, playerList.length, progress);
                 const direction = getHorseDirection(progress);
