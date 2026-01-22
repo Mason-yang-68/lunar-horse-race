@@ -815,9 +815,24 @@ def on_quiz_answer(data):
     question_id = data.get('question_id')
     answer_index = data.get('answer')
     
-    # Find the question
-    question = next((q for q in QUESTIONS if q['id'] == question_id), None)
+    # Get questions based on current theme
+    current_theme = GAME_STATE.get('theme', DEFAULT_THEME)
+    theme_questions = get_questions(current_theme)
+    
+    # Find the question (question_id is actually the index in the list)
+    question = None
+    try:
+        q_idx = int(question_id)
+        if 0 <= q_idx < len(theme_questions):
+            question = theme_questions[q_idx]
+    except (ValueError, TypeError):
+        pass
+        
     if not question:
+        # Provide fallback/cleanup if question not found to avoid player getting stuck
+        if player_id in PLAYERS:
+            PLAYERS[player_id]['answering_until'] = 0
+            PLAYERS[player_id]['current_question_id'] = None
         return
     
     player = PLAYERS[player_id]
@@ -853,7 +868,7 @@ def on_quiz_answer(data):
     socketio.emit('quiz_answered', {
         'player_id': player_id,
         'player_name': player['name'],
-        'question': question['q'],
+        'question': question.get('question') or question.get('q', ''),
         'correct': is_correct
     }, namespace='/')
 
