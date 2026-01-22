@@ -18,7 +18,8 @@
             aspect-ratio: 900 / 550;
             margin: 20px auto;
             background-image: url('{{ url_for("static", filename="images/race_background.jpg") }}');
-            background-size: cover;
+            background-size: 100% 100%;
+            /* Force image to fit container exactly to match coordinate system */
             background-repeat: no-repeat;
             background-position: center;
             border-radius: 20px;
