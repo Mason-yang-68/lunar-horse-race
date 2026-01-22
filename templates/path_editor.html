@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Race Track Path Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .editor-area {
+            position: relative;
+            margin-top: 20px;
+            border: 2px solid #333;
+            cursor: crosshair;
+        }
+
+        #track-image {
+            max-width: 1000px;
+            width: 100%;
+            /* Responsive width */
+            display: block;
+        }
+
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            /* Let clicks pass through to image or wrapper */
+        }
+
+        .controls {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 800px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-top: 10px;
+            font-family: monospace;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.reset {
+            background: #dc3545;
+        }
+
+        button.reset:hover {
+            background: #c82333;
+        }
+
+        .instructions {
+            margin-bottom: 10px;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>賽道以路徑編輯器 (Path Editor)</h1>
+
+        <div class="controls">
+            <div class="instructions">
+                <strong>使用說明：</strong><br>
+                1. 在下方的賽道圖上依序點擊，設定路徑點 (從 0 到 9)。<br>
+                2. 點擊 0 是起點，9 是終點，中間是轉折點。<br>
+                3. 完成後，複製下方的座標代碼，傳送給 AI。
+            </div>
+            <div>
+                <button onclick="undoLastPoint()">復原上一步 (Undo)</button>
+                <button class="reset" onclick="resetPath()">全部重設 (Reset)</button>
+            </div>
+
+            <h3>輸出座標 (JSON)</h3>
+            <textarea id="output" readonly></textarea>
+        </div>
+
+        <div class="editor-area" id="editor-area" onclick="handleMapClick(event)">
+            <img id="track-image" src="/static/images/mingchang_track.jpg" alt="Mingchang Track">
+            <canvas id="canvas-overlay"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const trackImage = document.getElementById('track-image');
+        const canvas = document.getElementById('canvas-overlay');
+        const ctx = canvas.getContext('2d');
+        const output = document.getElementById('output');
+
+        let waypoints = [];
+
+        // Resize canvas to match image when loaded
+        trackImage.onload = function () {
+            resizeCanvas();
+        };
+        window.addEventListener('resize', resizeCanvas);
+
+        function resizeCanvas() {
+            canvas.width = trackImage.clientWidth;
+            canvas.height = trackImage.clientHeight;
+            drawPath();
+        }
+
+        function handleMapClick(event) {
+            const rect = trackImage.getBoundingClientRect();
+            // Get click position relative to the image
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Convert to percentage (0-100)
+            const percentX = Math.round((x / rect.width) * 100);
+            const percentY = Math.round((y / rect.height) * 100);
+
+            addPoint(percentX, percentY);
+        }
+
+        function addPoint(x, y) {
+            if (waypoints.length >= 10) {
+                alert("已達到最大點數 (10點: 0-9)。請復原或重設。");
+                return;
+            }
+            waypoints.push({ x: x, y: y });
+            updateOutput();
+            drawPath();
+        }
+
+        function undoLastPoint() {
+            waypoints.pop();
+            updateOutput();
+            drawPath();
+        }
+
+        function resetPath() {
+            waypoints = [];
+            updateOutput();
+            drawPath();
+        }
+
+        function drawPath() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (waypoints.length === 0) return;
+
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Draw lines
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'red';
+
+            waypoints.forEach((p, index) => {
+                const px = (p.x / 100) * width;
+                const py = (p.y / 100) * height;
+
+                if (index === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            });
+            ctx.stroke();
+
+            // Draw points
+            waypoints.forEach((p, index) => {
+                const px = (p.x / 100) * width;
+                const py = (p.y / 100) * height;
+
+                ctx.beginPath();
+                ctx.arc(px, py, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = 'yellow';
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw number
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(index, px, py);
+            });
+        }
+
+        function updateOutput() {
+            // Format as the JS array structure used in host.html
+            let jsonStr = "const mingchangWaypoints = [\n";
+            waypoints.forEach((p, i) => {
+                jsonStr += `    { x: ${p.x}, y: ${p.y} },   // ${i}\n`;
+            });
+            jsonStr += "];";
+            output.value = jsonStr;
+        }
+    </script>
+</body>
+
+</html>

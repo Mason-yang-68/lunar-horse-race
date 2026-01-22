@@ -124,6 +124,11 @@ def play():
 def tutorial():
     return render_template('tutorial.html')
 
+@app.route('/path-editor')
+def path_editor():
+    """Tool for editing track path"""
+    return render_template('path_editor.html')
+
 @app.route('/api/themes')
 def api_themes():
     """Get list of available themes"""
