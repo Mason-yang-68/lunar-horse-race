@@ -706,17 +706,19 @@ def quiz_spawner():
         # Find new position of correct answer
         new_correct_index = shuffled_options.index(correct_answer_text)
         
-        # Set answering state (10 seconds to answer, blocks shaking)
-        target_player['answering_until'] = current_time + 15  # 15 seconds to answer
-        target_player['current_question_id'] = question['id']
+        # Set answering state (15 seconds to answer, blocks shaking)
+        target_player['answering_until'] = current_time + 15
+        target_player['current_question_id'] = q_index  # Use index instead of 'id'
         target_player['shuffled_answer'] = new_correct_index  # Store shuffled answer
         
-        print(f"Quiz sent to {target_player['name']}: Q{question['id']} (10s to answer)")
+        print(f"Quiz sent to {target_player['name']}: Q#{q_index} (15s to answer)")
         
         # Send question to specific player only (with shuffled options)
+        # Handle both 'question' and 'q' key formats for backwards compatibility
+        question_text = question.get('question') or question.get('q', '')
         socketio.emit('quiz_question', {
-            'question_id': question['id'],
-            'question': question['q'],
+            'question_id': q_index,
+            'question': question_text,
             'options': shuffled_options,  # Shuffled!
             'timeout': 15  # Tell client about timeout (15 seconds)
         }, room=player_id)
