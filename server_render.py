@@ -719,7 +719,7 @@ def quiz_spawner():
             'player_id': player_id,
             'player_name': target_player['name'],
             'player_index': player_index,
-            'question': question['q']
+            'question': question_text
         }, namespace='/')
 
 def check_item_collision(player_id, player_progress, is_dodging=False):
