@@ -630,13 +630,33 @@ def quiz_spawner():
         current_time = time.time()
         
         # Get eligible players (not finished, not frozen, not answering, not in cooldown)
-        eligible_players = [
-            p for p in PLAYERS.values() 
-            if not p.get('finished') 
-            and p.get('freeze_until', 0) < current_time
-            and p.get('answering_until', 0) < current_time
-            and p.get('quiz_cooldown_until', 0) < current_time
-        ]
+        eligible_players = []
+        for p in PLAYERS.values():
+            if p.get('finished'):
+                continue
+                
+            # Check blocking conditions with logging
+            if p.get('freeze_until', 0) >= current_time:
+                # print(f"Skip {p['name']}: Frozen")
+                continue
+            
+            # Check if answering (and fix stuck state if timeout passed)
+            if p.get('answering_until', 0) > 0:
+                if p.get('answering_until', 0) < current_time:
+                    # Auto-clear stuck state
+                    print(f"Server auto-clearing stuck answering state for {p['name']}")
+                    p['answering_until'] = 0
+                    p['current_question_id'] = None
+                else:
+                    # Still answering
+                    # print(f"Skip {p['name']}: Answering")
+                    continue
+            
+            if p.get('quiz_cooldown_until', 0) >= current_time:
+                # print(f"Skip {p['name']}: Cooldown")
+                continue
+                
+            eligible_players.append(p)
         if not eligible_players:
             continue
             

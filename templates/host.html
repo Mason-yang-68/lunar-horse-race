@@ -1241,7 +1241,8 @@
         const trackWaypoints = hashimaeWaypoints;
 
         // DEBUG: Show track path visualization
-        function showDebugPath(trackId = 'race-oval-track') {
+        function showDebugPath() { console.log('Debug path disabled'); }
+        function showDebugPath_DISABLED(trackId = 'race-oval-track') {
             const track = document.getElementById(trackId);
             if (!track) return;
 
