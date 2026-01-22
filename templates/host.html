@@ -2255,6 +2255,14 @@
             applyTrackBackground(data.track_background);
             // Update avatar folder for correct image paths
             currentAvatarFolder = data.avatar_folder || '';
+
+            // Auto-show debug path for Mingchang theme inspection
+            if (data.theme_id === 'mingchang') {
+                console.log('Mingchang theme active - showing debug path');
+                setTimeout(() => showDebugPath(), 500); // Small delay to ensure render
+            } else {
+                hideDebugPath();
+            }
         });
 
         socket.on('current_theme', (data) => {

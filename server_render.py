@@ -137,7 +137,8 @@ def on_set_theme(data):
     theme_id = data.get('theme_id', DEFAULT_THEME)
     theme = get_theme(theme_id)
     GAME_STATE['theme'] = theme_id
-    print(f"Theme set to: {theme['name']} ({theme_id})")
+    print(f"[THEME] Theme set to: {theme['name']} ({theme_id})")
+    print(f"[THEME] GAME_STATE['theme'] is now: {GAME_STATE['theme']}")
     
     # Broadcast theme change to all clients
     emit('theme_changed', {
@@ -651,9 +652,9 @@ def quiz_spawner():
     
     while GAME_STATE['status'] == 'RACING' and TASK_FLAGS['quiz_running']:
         # Dynamic interval based on player count: more players = faster questions
-        # With 1-2 players: 4-6s, with 10 players: ~1.2-2s
+        # With 1-2 players: 2-3s (was 4-6s), with 10 players: ~0.6-1s
         player_count = max(1, len(PLAYERS))
-        base_interval = 4.0 / (player_count ** 0.5)  # Scale with sqrt of players
+        base_interval = 2.0 / (player_count ** 0.5)  # Scale with sqrt of players, faster base
         interval = random.uniform(base_interval, base_interval * 1.5)
         eventlet.sleep(max(1.0, interval))  # Minimum 1 second between questions
         if GAME_STATE['status'] != 'RACING':
