@@ -574,7 +574,11 @@
 
             // Show player's selected avatar in wait screen
             const avatarImg = document.getElementById('wait-avatar-img');
-            avatarImg.src = '/static/images/' + myAvatar + '.png';
+            if (myAvatar.startsWith('hw_')) {
+                avatarImg.src = '/static/images/mingchang/' + myAvatar + '.png';
+            } else {
+                avatarImg.src = '/static/images/' + myAvatar + '.png';
+            }
             avatarImg.onerror = function () { this.src = '/static/images/horse1.png'; };
 
             // Show player name (use potentially updated name)
@@ -832,6 +836,10 @@
             const avatarContainer = document.getElementById('avatar-grid');
             avatarContainer.innerHTML = '';  // Clear existing
 
+            // Preserve existing selection if valid for this theme
+            const currentSelection = document.getElementById('selected-avatar').value;
+            let selectionPreserved = false;
+
             for (let i = 1; i <= 10; i++) {
                 let div = document.createElement('div');
                 div.className = 'avatar-option';
@@ -855,11 +863,38 @@
                     this.classList.add('selected');
                     document.getElementById('selected-avatar').value = this.dataset.id;
                 };
-                if (i === 1) {
+
+                // Check if this matches preserved selection
+                if (currentSelection && currentSelection === div.dataset.id) {
                     div.classList.add('selected');
-                    document.getElementById('selected-avatar').value = currentAvatarPrefix + '1';
+                    selectionPreserved = true;
                 }
+                // Default to first if no selection preserved yet (will be cleared if later match found, 
+                // but we handle "no match found" case by ensuring non-empty default)
+                else if (i === 1 && !selectionPreserved) {
+                    // Don't mark selected yet, wait to see if we find a match later?
+                    // Actually, simpler: Mark first as default, then remove if we find match.
+                    div.classList.add('default-selection');
+                }
+
                 avatarContainer.appendChild(div);
+            }
+
+            // Post-loop: specific cleanup
+            if (selectionPreserved) {
+                // If we found the user's old selection, ensure only that is selected
+                // (The default-selection class is just a marker, we don't style it as selected unless we add .selected)
+                // Actually, my logic above was slightly flawed.
+                // Let's refine:
+                // If selectionPreserved, we already added .selected to the match.
+                // The 'default-selection' on item 1 is ignored.
+            } else {
+                // If NOT preserved (e.g. theme changed), select the first one
+                const first = avatarContainer.firstElementChild;
+                if (first) {
+                    first.classList.add('selected');
+                    document.getElementById('selected-avatar').value = first.dataset.id;
+                }
             }
         }
 

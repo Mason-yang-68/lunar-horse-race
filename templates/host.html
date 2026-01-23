@@ -1428,6 +1428,8 @@
                 img.onerror = function () { this.src = '/static/images/horse1.png'; };
                 // Flip horse based on direction (scaleX)
                 img.style.transform = 'scaleX(' + direction + ')';
+                // Set CSS variable for animations to know the direction
+                playerDiv.style.setProperty('--horse-dir', direction);
 
                 const nameTag = document.createElement('div');
                 nameTag.className = 'track-player-name';
@@ -1791,8 +1793,12 @@
             }, 3000);
 
             // Play win sound for top 3
-            if (data.rank <= 3) {
-                playWinSound();
+            if (data.rank === 1) {
+                // First place: 5 seconds celebration then resume music
+                playVictoryInterlude();
+            } else if (data.rank <= 3) {
+                // 2nd/3rd: Short sound only, don't interrupt race music if playing
+                playShortWinSound();
             }
 
             // Update live leaderboard on left side
@@ -2435,6 +2441,30 @@
         function playCorrectSound() {
             correctSound.currentTime = 0;
             correctSound.play().catch(e => { });
+        }
+
+        function playVictoryInterlude() {
+            stopAllMusic();
+            // Play fireworks
+            fireworksSound.currentTime = 0;
+            fireworksSound.play().catch(e => { });
+
+            // Resume racing music after 5 seconds if still racing
+            setTimeout(() => {
+                // Check if race screen is still visible (game not over)
+                if (document.getElementById('race-screen').style.display !== 'none') {
+                    fireworksSound.pause();
+                    startRacingMusic();
+                }
+            }, 5000);
+        }
+
+        function playShortWinSound() {
+            // Play a happy tone sequence without stopping background music
+            const freqs = [523.25, 659.25, 783.99, 1046.50];
+            freqs.forEach((freq, i) => {
+                setTimeout(() => playTone(freq, 'sine', 0.1, 0.4), i * 80);
+            });
         }
 
         function playWrongSound() {
