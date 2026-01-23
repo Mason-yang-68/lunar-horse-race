@@ -712,6 +712,119 @@
             }
         });
 
+        // ========= Lucky Slot Machine =========
+        socket.on('slot_machine_trigger', (data) => {
+            console.log('Slot machine triggered!', data);
+            showSlotMachine(data);
+        });
+
+        function showSlotMachine(data) {
+            const overlay = document.createElement('div');
+            overlay.id = 'slot-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+
+            const folder = data.avatar_folder || '';
+            const prefix = data.avatar_prefix || 'horse';
+            const basePath = folder ? `/static/images/${folder}/` : '/static/images/';
+
+            overlay.innerHTML = `
+                <div style="text-align:center;color:gold;font-size:24px;margin-bottom:20px;">🎰 幸運拉霸機 🎰</div>
+                <div style="text-align:center;color:#aaa;font-size:14px;margin-bottom:20px;">第 ${data.rank} 名 - 剩餘 ${data.lucky_slots_remaining} 個幸運名額</div>
+                <div id="slot-reels" style="display:flex;gap:10px;background:#222;padding:20px;border-radius:15px;border:3px solid gold;">
+                    <div style="width:80px;height:80px;overflow:hidden;border:2px solid #444;border-radius:10px;background:#111;"><div id="reel1"></div></div>
+                    <div style="width:80px;height:80px;overflow:hidden;border:2px solid #444;border-radius:10px;background:#111;"><div id="reel2"></div></div>
+                    <div style="width:80px;height:80px;overflow:hidden;border:2px solid #444;border-radius:10px;background:#111;"><div id="reel3"></div></div>
+                </div>
+                <div id="slot-message" style="margin-top:30px;font-size:20px;color:white;text-align:center;"></div>
+                <button id="spin-btn" style="margin-top:20px;padding:15px 40px;font-size:20px;background:linear-gradient(145deg,#FFD700,#FFA500);color:#000;border:none;border-radius:10px;cursor:pointer;font-weight:bold;">🎲 拉霸！</button>
+            `;
+            document.body.appendChild(overlay);
+
+            // Build reel images
+            for (let r = 1; r <= 3; r++) {
+                const reel = document.getElementById('reel' + r);
+                let html = '';
+                for (let i = 1; i <= 10; i++) {
+                    html += `<img src="${basePath}${prefix}${i}.png" style="width:80px;height:80px;object-fit:contain;">`;
+                }
+                for (let i = 1; i <= 10; i++) {
+                    html += `<img src="${basePath}${prefix}${i}.png" style="width:80px;height:80px;object-fit:contain;">`;
+                }
+                reel.innerHTML = html;
+            }
+
+            document.getElementById('spin-btn').onclick = () => {
+                document.getElementById('spin-btn').disabled = true;
+                document.getElementById('spin-btn').style.opacity = '0.5';
+                spinReels(data);
+            };
+        }
+
+        function spinReels(data) {
+            const results = [];
+            const canWin = data.lucky_slots_remaining > 0;
+            const willWin = canWin && Math.random() < 0.33;
+
+            if (willWin) {
+                const match = Math.floor(Math.random() * 10) + 1;
+                results.push(match, match, match);
+            } else {
+                results.push(Math.floor(Math.random() * 10) + 1);
+                results.push(Math.floor(Math.random() * 10) + 1);
+                results.push(Math.floor(Math.random() * 10) + 1);
+                if (results[0] === results[1] && results[1] === results[2]) {
+                    results[2] = (results[2] % 10) + 1;
+                }
+            }
+
+            const durations = [2000, 2500, 3000];
+            for (let r = 0; r < 3; r++) {
+                animateReel(r + 1, results[r], durations[r]);
+            }
+
+            setTimeout(() => {
+                const won = results[0] === results[1] && results[1] === results[2];
+                socket.emit('slot_result', { won: won, results: results });
+            }, 3200);
+        }
+
+        function animateReel(reelNum, finalValue, duration) {
+            const reel = document.getElementById('reel' + reelNum);
+            let pos = 0;
+            const speed = 15;
+            const startTime = Date.now();
+
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                if (elapsed < duration - 500) {
+                    pos += speed;
+                    reel.style.transform = `translateY(-${pos % 800}px)`;
+                    requestAnimationFrame(animate);
+                } else {
+                    const finalPos = (finalValue - 1) * 80;
+                    reel.style.transition = 'transform 0.5s ease-out';
+                    reel.style.transform = `translateY(-${finalPos}px)`;
+                }
+            };
+            animate();
+        }
+
+        socket.on('slot_result_final', (data) => {
+            const msgEl = document.getElementById('slot-message');
+            if (data.won) {
+                msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${data.prize}</div>`;
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+            } else {
+                msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">💰 獎金</div><div style="font-size:32px;color:white;margin-top:10px;">$${data.prize}</div>`;
+                if (navigator.vibrate) navigator.vibrate([100]);
+            }
+            setTimeout(() => {
+                const overlay = document.getElementById('slot-overlay');
+                if (overlay) overlay.remove();
+            }, 5000);
+        });
+        // ========================================
+
         // Quiz alert sound (using Web Audio API for better iOS compatibility)
         let audioContext = null;
         function playQuizAlertSound() {

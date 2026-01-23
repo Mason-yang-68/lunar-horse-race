@@ -541,10 +541,18 @@ def on_start_race(data):
             GAME_STATE['manual_prizes'] = None
             GAME_STATE['top3_prizes'] = None
             GAME_STATE['total_prize'] = int(data.get('amount', 0))
+        
+        # Lucky prize settings
+        GAME_STATE['lucky_prize'] = int(data.get('lucky_prize', 500))
+        GAME_STATE['lucky_winners_count'] = 0
+        GAME_STATE['lucky_max_winners'] = 3
     except:
         GAME_STATE['total_prize'] = 0
         GAME_STATE['manual_prizes'] = None
         GAME_STATE['top3_prizes'] = None
+        GAME_STATE['lucky_prize'] = 500
+        GAME_STATE['lucky_winners_count'] = 0
+        GAME_STATE['lucky_max_winners'] = 3
         
     GAME_STATE['status'] = 'RACING'
     # Set race start time (after 4 second countdown)
@@ -932,6 +940,40 @@ def on_quiz_timeout(data):
     }, namespace='/')
 
 
+@socketio.on('slot_result')
+def on_slot_result(data):
+    """Handle the slot machine result from client"""
+    if GAME_STATE['status'] != 'RACING':
+        return
+    
+    player_id = request.sid
+    if player_id not in PLAYERS:
+        return
+    
+    player = PLAYERS[player_id]
+    is_winner = data.get('won', False)
+    
+    # Determine prize
+    if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
+        # Lucky winner!
+        GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
+        prize = GAME_STATE.get('lucky_prize', 500)
+        player['slot_prize'] = prize
+        print(f"Player {player['name']} WON lucky prize! ({GAME_STATE['lucky_winners_count']}/{GAME_STATE['lucky_max_winners']})")
+    else:
+        # Not a winner or slots full - consolation prize
+        prize = 200
+        player['slot_prize'] = prize
+        print(f"Player {player['name']} got consolation prize: {prize}")
+    
+    # Send result back to player
+    emit('slot_result_final', {
+        'won': is_winner and GAME_STATE.get('lucky_winners_count', 0) <= GAME_STATE.get('lucky_max_winners', 3),
+        'prize': prize,
+        'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
+    }, room=player_id)
+
+
 @socketio.on('shake_event')
 def on_shake(data):
     if GAME_STATE['status'] != 'RACING':
@@ -1001,6 +1043,18 @@ def on_shake(data):
             'player_name': PLAYERS[request.sid]['name'],
             'rank': finished_count
         }, broadcast=True)
+        
+        # Trigger slot machine for players finishing 4th or later
+        if finished_count > 3:
+            current_theme = GAME_STATE.get('theme', 'hashimae')
+            theme = get_theme(current_theme)
+            emit('slot_machine_trigger', {
+                'rank': finished_count,
+                'lucky_prize': GAME_STATE.get('lucky_prize', 500),
+                'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+                'avatar_folder': theme.get('avatar_folder', ''),
+                'avatar_prefix': theme.get('avatar_prefix', 'horse')
+            }, room=request.sid)
         
         # Check if ALL finished
         total_players = len(PLAYERS)

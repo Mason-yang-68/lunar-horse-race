@@ -849,6 +849,11 @@
                 <label>🥉 第3名獎金</label>
                 <input type="number" id="prize3" value="600" onchange="updatePrizeDisplay()">
             </div>
+            <div class="top3-input" style="border-color: #FF69B4;">
+                <label style="color: #FF69B4;">🎰 幸運獎金</label>
+                <input type="number" id="lucky-prize" value="500" onchange="updatePrizeDisplay()">
+                <span style="font-size:10px;color:#aaa;">限3名中獎</span>
+            </div>
         </div>
 
         <div class="setup-content">
@@ -2336,9 +2341,11 @@
             const prize1 = parseInt(document.getElementById('prize1').value) || 0;
             const prize2 = parseInt(document.getElementById('prize2').value) || 0;
             const prize3 = parseInt(document.getElementById('prize3').value) || 0;
+            const luckyPrize = parseInt(document.getElementById('lucky-prize').value) || 500;
 
             socket.emit('start_race', {
                 top3_prizes: [prize1, prize2, prize3],
+                lucky_prize: luckyPrize,
                 amount: prize1 + prize2 + prize3 // Total as fallback
             });
 
