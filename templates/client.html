@@ -548,10 +548,21 @@
             myId = data.id;
             hideDisconnectOverlay();
 
+            // CRITICAL: Switch UI to race screen (page may have reloaded)
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('permission-screen').style.display = 'none';
+            document.getElementById('wait-screen').style.display = 'none';
+            document.getElementById('race-screen').style.display = 'block';
+
+            // Ensure state is correct
+            isRacing = true;
+            isWaiting = false;
+            saveGameState();
+
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
             startListening();
 
-            // Show success message with new ID for debugging
+            // Show success message
             const msg = document.createElement('div');
             msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,128,0,0.9);color:white;padding:20px 40px;border-radius:15px;font-size:20px;z-index:9999;';
             msg.innerText = '✅ 已重新連線! 可以繼續搖晃!';
@@ -578,6 +589,26 @@
             console.log('Rejoin waiting successful!', data);
             myId = data.id;
             hideDisconnectOverlay();
+
+            // CRITICAL: Switch UI to wait screen (page may have reloaded)
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('permission-screen').style.display = 'none';
+            document.getElementById('race-screen').style.display = 'none';
+            document.getElementById('wait-screen').style.display = 'block';
+
+            // Update avatar display
+            const avatarImg = document.getElementById('wait-avatar-img');
+            if (myAvatar.startsWith('hw_')) {
+                avatarImg.src = '/static/images/mingchang/' + myAvatar + '.png';
+            } else {
+                avatarImg.src = '/static/images/' + myAvatar + '.png';
+            }
+            document.getElementById('wait-player-name').innerText = myName;
+
+            // Ensure state is correct
+            isWaiting = true;
+            isRacing = false;
+            saveGameState();
 
             // Show success message
             const msg = document.createElement('div');
