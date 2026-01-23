@@ -43,10 +43,21 @@ def process_new_horses():
     pass
 
 if __name__ == '__main__':
-    # This script is intended to be run after copying images
-    folder = r'c:\Users\guziy\Documents\過年紅包\static\images\mingchang'
-    for i in range(1, 7): # Process v2 horses (1-6)
-        filename = f'hw_horse{i}.png'
-        filepath = os.path.join(folder, filename)
-        if os.path.exists(filepath):
-            remove_white_background(filepath, filepath)
+    # Process regular horses
+    base_folder = r'c:\Users\guziy\Documents\過年紅包\static\images'
+    print(f"Processing base folder: {base_folder}")
+    for filename in os.listdir(base_folder):
+        if filename.startswith('horse') and filename.endswith('.png'):
+            filepath = os.path.join(base_folder, filename)
+            remove_white_background(filepath, filepath, tolerance=40)
+
+    # Process mingchang horses
+    mc_folder = os.path.join(base_folder, 'mingchang')
+    print(f"Processing Ming Chang folder: {mc_folder}")
+    if os.path.exists(mc_folder):
+        for filename in os.listdir(mc_folder):
+            if filename.startswith('hw_horse') and filename.endswith('.png'):
+                filepath = os.path.join(mc_folder, filename)
+                remove_white_background(filepath, filepath, tolerance=40)
+    
+    print("Background removal complete.")

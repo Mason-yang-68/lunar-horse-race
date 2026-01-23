@@ -409,12 +409,58 @@
             reconnectionDelayMax: 5000,
             reconnectionAttempts: 10
         });
+
+        // ========= Device ID for reconnection =========
+        function getDeviceId() {
+            let id = localStorage.getItem('horse_race_device_id');
+            if (!id) {
+                id = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+                localStorage.setItem('horse_race_device_id', id);
+            }
+            return id;
+        }
+        const deviceId = getDeviceId();
+        console.log('Device ID:', deviceId);
+
+        // ========= State Persistence =========
+        function saveGameState() {
+            sessionStorage.setItem('horse_race_state', JSON.stringify({
+                myName, myAvatar, isRacing, isWaiting
+            }));
+        }
+
+        function loadGameState() {
+            const saved = sessionStorage.getItem('horse_race_state');
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    if (state.myName) myName = state.myName;
+                    if (state.myAvatar) myAvatar = state.myAvatar;
+                    if (state.isRacing) isRacing = state.isRacing;
+                    if (state.isWaiting) isWaiting = state.isWaiting;
+                    console.log('Restored game state:', state);
+                    return true;
+                } catch (e) {
+                    console.log('Failed to restore game state:', e);
+                }
+            }
+            return false;
+        }
+
+        function clearGameState() {
+            sessionStorage.removeItem('horse_race_state');
+        }
+        // ==============================================
+
         let myId = null;
         let myName = '';
         let myAvatar = 'horse1';
         let isRacing = false;
         let isWaiting = false;  // Track waiting state for reconnection
         let disconnectOverlay = null;
+
+        // Restore state on page load (before socket connect triggers)
+        const hadSavedState = loadGameState();
 
         // Show disconnect overlay
         function showDisconnectOverlay() {
@@ -486,12 +532,12 @@
             // If we were in a game (racing), try to rejoin
             if (myName && isRacing) {
                 console.log('Attempting to rejoin game as:', myName);
-                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar });
+                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar, device_id: deviceId });
             }
             // If we were waiting, try to rejoin waiting
             else if (myName && isWaiting) {
                 console.log('Attempting to rejoin waiting as:', myName);
-                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar });
+                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar, device_id: deviceId });
             }
         });
 
@@ -571,6 +617,7 @@
                 myName = data.name;
             }
             isWaiting = true;  // Mark that we're in waiting state
+            saveGameState();  // Persist state for page reload
 
             // Show player's selected avatar in wait screen
             const avatarImg = document.getElementById('wait-avatar-img');
@@ -602,6 +649,7 @@
 
             isWaiting = false;  // No longer waiting
             isRacing = true;  // Mark that we're in a race for reconnection
+            saveGameState();  // Persist state for page reload
 
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
@@ -928,7 +976,7 @@
             myName = document.getElementById('player-name').value;
             myAvatar = document.getElementById('selected-avatar').value;
             if (!myName) return alert("請輸入名字 / Please enter name");
-            socket.emit('join_game', { name: myName, avatar_id: myAvatar });
+            socket.emit('join_game', { name: myName, avatar_id: myAvatar, device_id: deviceId });
         }
 
         function requestPermission() {

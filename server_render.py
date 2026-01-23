@@ -366,6 +366,7 @@ def on_join(data):
 
     name = data.get('name', 'Unknown').strip()
     avatar_id = data.get('avatar_id', 'horse1')
+    device_id = data.get('device_id', '')
     
     # Name validation: limit length to 10 characters
     if len(name) > 10:
@@ -377,22 +378,55 @@ def on_join(data):
         return
     
     # Check for duplicate names
-    existing_names = [p['name'] for p in PLAYERS.values()]
-    if name in existing_names:
-        # Auto-add suffix for duplicate names
-        suffix = 2
-        new_name = f"{name}{suffix}"
-        while new_name in existing_names:
-            suffix += 1
+    existing_player = None
+    existing_pid = None
+    for pid, player in list(PLAYERS.items()):
+        if player['name'] == name:
+            existing_player = player
+            existing_pid = pid
+            break
+    
+    if existing_player:
+        # Same name exists - check device_id
+        if device_id and existing_player.get('device_id') == device_id:
+            # Same device! This is a reconnection, take over the slot
+            print(f"Player {name} reconnecting with same device_id, taking over slot")
+            new_id = request.sid
+            existing_player['id'] = new_id
+            existing_player['disconnected'] = False
+            existing_player['avatar_id'] = avatar_id  # Update avatar if changed
+            
+            # Move player to new session ID
+            if existing_pid != new_id:
+                PLAYERS[new_id] = existing_player
+                del PLAYERS[existing_pid]
+            
+            emit('join_success', {'id': new_id, 'name': name}, room=new_id)
+            # Notify host about reconnection
+            emit('player_reconnected', {
+                'player_id': new_id,
+                'old_player_id': existing_pid,
+                'player_name': name
+            }, broadcast=True)
+            emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+            return
+        else:
+            # Different device, add suffix
+            suffix = 2
             new_name = f"{name}{suffix}"
-        name = new_name
-        # Notify player about name change
-        emit('name_changed', {'original': data.get('name'), 'new': name})
+            existing_names = [p['name'] for p in PLAYERS.values()]
+            while new_name in existing_names:
+                suffix += 1
+                new_name = f"{name}{suffix}"
+            name = new_name
+            # Notify player about name change
+            emit('name_changed', {'original': data.get('name'), 'new': name})
     
     PLAYERS[request.sid] = {
         'id': request.sid,
         'name': name,
         'avatar_id': avatar_id,
+        'device_id': device_id,  # Store device ID
         'progress': 0,
         'speed': 0,
         'finished': False,
@@ -409,6 +443,7 @@ def on_rejoin(data):
         return
     
     name = data.get('name', '')
+    device_id = data.get('device_id', '')
     if not name:
         emit('rejoin_failed', {'message': '名稱錯誤'})
         return
@@ -425,6 +460,10 @@ def on_rejoin(data):
     if not old_player:
         emit('rejoin_failed', {'message': '找不到玩家'})
         return
+    
+    # Optional: verify device_id matches (log warning if mismatch but allow)
+    if device_id and old_player.get('device_id') and device_id != old_player.get('device_id'):
+        print(f"WARNING: Player {name} rejoining with different device_id!")
     
     # Transfer player data to new session
     new_id = request.sid
