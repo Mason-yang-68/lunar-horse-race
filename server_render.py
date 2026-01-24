@@ -1023,7 +1023,6 @@ def on_request_spin(data):
         'prize': prize,
         'target_reels': target_reels, # [1, 5, 2] indices
         'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
-        'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
     }, room=player_id)
     
     # Remove from pending slots
