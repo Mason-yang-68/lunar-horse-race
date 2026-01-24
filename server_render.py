@@ -438,7 +438,7 @@ def on_join(data):
 @socketio.on('rejoin_game')
 def on_rejoin(data):
     """Handle player reconnection during racing"""
-    if GAME_STATE['status'] != 'RACING':
+    if GAME_STATE['status'] not in ['RACING', 'WAITING_FOR_SLOTS']:
         emit('rejoin_failed', {'message': '遊戲未進行中'})
         return
     
@@ -544,15 +544,19 @@ def on_start_race(data):
         
         # Lucky prize settings
         GAME_STATE['lucky_prize'] = int(data.get('lucky_prize', 500))
+        GAME_STATE['lucky_prize'] = int(data.get('lucky_prize', 500))
         GAME_STATE['lucky_winners_count'] = 0
         GAME_STATE['lucky_max_winners'] = 3
+        GAME_STATE['pending_slots'] = set()  # Track players who need to spin
     except:
         GAME_STATE['total_prize'] = 0
         GAME_STATE['manual_prizes'] = None
         GAME_STATE['top3_prizes'] = None
         GAME_STATE['lucky_prize'] = 500
+        GAME_STATE['lucky_prize'] = 500
         GAME_STATE['lucky_winners_count'] = 0
         GAME_STATE['lucky_max_winners'] = 3
+        GAME_STATE['pending_slots'] = set()
         
     GAME_STATE['status'] = 'RACING'
     # Set race start time (after 4 second countdown)
@@ -943,8 +947,7 @@ def on_quiz_timeout(data):
 @socketio.on('request_spin')
 def on_request_spin(data):
     """Handle slot machine spin request - Server determines result"""
-    # Allow spin during RACING or even after FINISHED (for slow players)
-    if GAME_STATE['status'] not in ['RACING', 'FINISHED']:
+    if GAME_STATE['status'] not in ['RACING', 'WAITING_FOR_SLOTS']:
         return
     
     player_id = request.sid
@@ -1020,7 +1023,18 @@ def on_request_spin(data):
         'prize': prize,
         'target_reels': target_reels, # [1, 5, 2] indices
         'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
+        'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
     }, room=player_id)
+    
+    # Remove from pending slots
+    if player_id in GAME_STATE.get('pending_slots', set()):
+        GAME_STATE['pending_slots'].remove(player_id)
+        print(f"Player {player['name']} completed spin. Pending: {len(GAME_STATE['pending_slots'])}")
+        
+    # Check if all pending slots are done (only if we are in WAITING_FOR_SLOTS state)
+    if GAME_STATE.get('status') == 'WAITING_FOR_SLOTS' and not GAME_STATE.get('pending_slots'):
+        print("All pending slots completed! Calculating final results...")
+        calculate_and_emit_results()
 
 
 @socketio.on('shake_event')
@@ -1095,6 +1109,11 @@ def on_shake(data):
         
         # Trigger slot machine for players finishing 4th or later
         if finished_count > 3:
+            # Mark player as pending spin
+            if 'pending_slots' not in GAME_STATE:
+                GAME_STATE['pending_slots'] = set()
+            GAME_STATE['pending_slots'].add(request.sid)
+            
             current_theme = GAME_STATE.get('theme', 'hashimae')
             theme = get_theme(current_theme)
             emit('slot_machine_trigger', {
@@ -1109,8 +1128,16 @@ def on_shake(data):
         total_players = len(PLAYERS)
         print(f"Player {PLAYERS[request.sid]['name']} finished! Count: {finished_count}/{total_players}")
         if finished_count >= total_players:
-            print(f"All {total_players} players finished - calculating results!")
-            on_calculate_results()
+            # Check if there are pending slots
+            pending_count = len(GAME_STATE.get('pending_slots', set()))
+            if pending_count > 0:
+                print(f"All players finished racing, but waiting for {pending_count} slot spins...")
+                GAME_STATE['status'] = 'WAITING_FOR_SLOTS'
+                # Notify host (optional, maybe host shows a message)
+                emit('waiting_for_slots', {'pending_count': pending_count}, broadcast=True)
+            else:
+                print(f"All {total_players} players finished and no pending slots - calculating results!")
+                calculate_and_emit_results()
     
     emit('player_update', {
         'id': request.sid, 

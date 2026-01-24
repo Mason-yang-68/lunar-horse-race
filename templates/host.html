@@ -1409,17 +1409,25 @@
             let newLeaderId = null;
 
             // First pass: Determine the actual leader
+            // Prioritize finished players (lowest order), then progress
             playerList.forEach(p => {
                 const progress = p.progress || 0;
-                if (progress > maxProgress && progress > 0 && progress < 100) {
+                // If finished, use finish_order (lower is better, 1-based usually)
+                if (p.finished) {
+                    const order = p.finish_order || 999;
+                    // If we haven't found a leader yet or this one is better
+                    if (newLeaderId === null || (p.finished && order < (playerList.find(x => x.id === newLeaderId)?.finish_order || 999))) {
+                        newLeaderId = p.id;
+                    }
+                } else if (newLeaderId === null || (!playerList.find(x => x.id === newLeaderId)?.finished && progress > maxProgress)) {
+                    // Standard progress check if leader is not finished yet
                     maxProgress = progress;
-                    newLeaderId = p.id;
+                    if (progress > 0) newLeaderId = p.id;
                 }
             });
 
             playerList.forEach((p, index) => {
                 const progress = p.progress || 0;
-                // Leader calculation moved to pre-pass
 
                 const pos = getOvalPosition(index, playerList.length, progress);
                 const direction = getHorseDirection(progress);
@@ -1430,25 +1438,35 @@
                 playerDiv.style.left = pos.x + '%';
                 playerDiv.style.top = pos.y + '%';
 
-                // Mark leader with a crown or effect if needed
-                if (p.id === newLeaderId && trackId === 'race-oval-track' && playerList.length > 1) {
+                // Mark leader with a crown (only if actually started)
+                // Only first place gets crown
+                if (trackId === 'race-oval-track' && p.id === newLeaderId && playerList.some(x => x.progress > 0)) {
                     playerDiv.classList.add('is-leader');
                 }
 
                 const img = document.createElement('img');
                 img.src = getAvatarPath(p.avatar_id);
                 img.onerror = function () { this.src = '/static/images/horse1.png'; };
-                // Flip horse based on direction (scaleX)
                 img.style.transform = 'scaleX(' + direction + ')';
-                // Set CSS variable for animations to know the direction
                 playerDiv.style.setProperty('--horse-dir', direction);
 
                 const nameTag = document.createElement('div');
                 nameTag.className = 'track-player-name';
                 nameTag.innerText = p.name;
 
+                // Check disconnected status - Persistent check
+                if (disconnectedPlayers.has(p.id)) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'offline-indicator';
+                    indicator.innerHTML = '📡 離線中';
+                    indicator.style.cssText = 'position:absolute;top:-30px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.8);color:white;padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap;z-index:100;animation:blink 1s infinite;';
+                    playerDiv.appendChild(indicator);
+                    img.style.filter = 'grayscale(100%)';
+                    img.style.opacity = '0.6';
+                }
+
                 // Add running dust effect occasionally for leader
-                if (p.id === newLeaderId && trackId === 'race-oval-track' && Math.random() < 0.1) {
+                if (p.id === newLeaderId && trackId === 'race-oval-track' && Math.random() < 0.1 && !p.finished) {
                     createDustEffect(parseFloat(pos.x), parseFloat(pos.y), '#FFD700');
                 }
 
@@ -1459,23 +1477,30 @@
 
             // Trigger cheer sound if leader changed
             if (trackId === 'race-oval-track' && newLeaderId && newLeaderId !== currentLeaderId) {
-                // Only cheer if significant progress (>5%) and more than 1 player
                 if (maxProgress > 5 && playerList.length > 1) {
-                    console.log(`Leader changed to ${newLeaderId}, cheering!`);
                     playCheerSound();
-
-                    // Show "New Leader!" text effect
-                    const leader = playerList.find(p => p.id === newLeaderId);
-                    if (leader) {
-                        // Ideally show a temporary text
-                    }
                 }
                 currentLeaderId = newLeaderId;
             }
         }
 
-
         // Socket Events
+        socket.on('waiting_for_slots', (data) => {
+            console.log('Waiting for slots:', data.pending_count);
+            // Show overlay on race screen
+            let waitingOverlay = document.getElementById('waiting-slots-overlay');
+            if (!waitingOverlay) {
+                waitingOverlay = document.createElement('div');
+                waitingOverlay.id = 'waiting-slots-overlay';
+                waitingOverlay.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:gold;padding:20px 40px;border-radius:20px;font-size:30px;z-index:9000;text-align:center;border:3px solid gold;box-shadow:0 0 30px gold;animation:popIn 0.5s;';
+                document.getElementById('race-screen').appendChild(waitingOverlay);
+            }
+            waitingOverlay.innerHTML = `
+                <div>⏳ 等待幸運抽獎中...</div>
+                <div style="font-size:20px;color:white;margin-top:10px;">還有 ${data.pending_count} 位玩家正在選轉拉霸機</div>
+            `;
+        });
+
         socket.on('update_player_list', (playerData) => {
             players = playerData;
             document.getElementById('player-count').innerText = players.length;
