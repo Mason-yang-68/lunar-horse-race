@@ -480,6 +480,14 @@ def on_rejoin(data):
         PLAYERS[new_id] = old_player
         del PLAYERS[old_id]
         print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}... (states cleared)")
+        
+        # KEY FIX: Check if this player was in pending_slots (waiting to spin)
+        pending_slots = GAME_STATE.get('pending_slots', set())
+        if old_id in pending_slots:
+            pending_slots.remove(old_id)
+            pending_slots.add(new_id)
+            GAME_STATE['pending_slots'] = pending_slots
+            print(f"Transferred pending slot status to new ID")
     
     emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
     # Notify host about reconnection - IMPORTANT: send old_id so host can find the element

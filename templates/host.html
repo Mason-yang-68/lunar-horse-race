@@ -1506,6 +1506,55 @@
                 }
                 currentLeaderId = newLeaderId;
             }
+
+            // Update Live Leaderboard Sidebar
+            updateLiveLeaderboard(playerList);
+        }
+
+        function updateLiveLeaderboard(playerList) {
+            const container = document.getElementById('leaderboard-entries');
+            const sidebar = document.getElementById('live-leaderboard');
+            if (!container || !sidebar) return;
+
+            // Determine visibility: show only when racing or results
+            const raceScreen = document.getElementById('race-screen');
+            if (raceScreen.style.display === 'none') {
+                sidebar.style.display = 'none';
+                return;
+            }
+            sidebar.style.display = 'block';
+
+            // Sort players: Finished first (by order), then by progress
+            const sorted = [...playerList].sort((a, b) => {
+                if (a.finished && b.finished) return (a.finish_order || 999) - (b.finish_order || 999);
+                if (a.finished) return -1;
+                if (b.finished) return 1;
+                return b.progress - a.progress;
+            });
+
+            let html = '';
+            // Show only top 5 to avoid overcrowding
+            sorted.slice(0, 5).forEach((p, i) => {
+                let rank = i + 1;
+                let medal = '';
+                let color = '#fff';
+                let prize = '$200'; // Default placeholder
+
+                if (rank === 1) { medal = '🥇'; color = '#FFD700'; prize = '$' + (document.getElementById('prize1').value || 1000); }
+                else if (rank === 2) { medal = '🥈'; color = '#C0C0C0'; prize = '$' + (document.getElementById('prize2').value || 800); }
+                else if (rank === 3) { medal = '🥉'; color = '#CD7F32'; prize = '$' + (document.getElementById('prize3').value || 600); }
+                else {
+                    // For Rank 4+, hide prize until final results (Slot Machine)
+                    medal = `<span style="display:inline-block;width:20px;text-align:center;background:#007bff;color:white;border-radius:4px;font-size:12px;">${rank}</span>`;
+                    prize = '<span style="color:#aaa;font-size:12px;">待開獎</span>';
+                }
+
+                html += `<div style="display:flex;justify-content:space-between;margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:3px;">
+                    <div>${medal} <span style="color:${color};font-weight:bold;">${p.name}</span></div>
+                    <div style="color:${rank <= 3 ? 'gold' : '#aaa'};">${prize}</div>
+                </div>`;
+            });
+            container.innerHTML = html;
         }
 
         // Socket Events
