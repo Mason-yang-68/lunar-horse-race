@@ -940,9 +940,9 @@ def on_quiz_timeout(data):
     }, namespace='/')
 
 
-@socketio.on('slot_result')
-def on_slot_result(data):
-    """Handle the slot machine result from client"""
+@socketio.on('request_spin')
+def on_request_spin(data):
+    """Handle slot machine spin request - Server determines result"""
     if GAME_STATE['status'] != 'RACING':
         return
     
@@ -951,25 +951,73 @@ def on_slot_result(data):
         return
     
     player = PLAYERS[player_id]
-    is_winner = data.get('won', False)
     
-    # Determine prize
-    if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
-        # Lucky winner!
-        GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
-        prize = GAME_STATE.get('lucky_prize', 500)
-        player['slot_prize'] = prize
-        print(f"Player {player['name']} WON lucky prize! ({GAME_STATE['lucky_winners_count']}/{GAME_STATE['lucky_max_winners']})")
+    # 1. Determine Win/Loss
+    import random
+    
+    # Check if slots are available
+    slots_left = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
+    is_lucky_win = False
+    
+    # 33% chance to win if slots are available
+    if slots_left > 0 and random.random() < 0.33:
+        is_lucky_win = True
+    
+    # 2. Update Game State (Atomic-ish)
+    if is_lucky_win:
+        # Re-check to be safe (simple race condition handling)
+        if GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
+            GAME_STATE['lucky_winners_count'] += 1
+            prize = GAME_STATE.get('lucky_prize', 500)
+            player['slot_prize'] = prize
+            print(f"🎰 Player {player['name']} WON lucky prize! ({GAME_STATE['lucky_winners_count']}/{GAME_STATE['lucky_max_winners']})")
+            
+            # Use random avatar index (1-10) for winning combo
+            win_idx = random.randint(1, 10)
+            target_reels = [win_idx, win_idx, win_idx]
+            
+            # Notify host immediately
+            emit('lucky_winner_update', {
+                'player_name': player['name'],
+                'avatar_id': player.get('avatar_id', 'horse1'),
+                'prize': prize
+            }, broadcast=True)
+        else:
+            # Race condition lost - fallback to consolation
+            is_lucky_win = False
+            prize = 200
+            player['slot_prize'] = prize
+            print(f"🎰 Player {player['name']} spin unlucky (slots full)")
+            
+            # Random loss pattern
+            target_reels = [random.randint(1, 10) for _ in range(3)]
+            # Ensure not winning
+            if target_reels[0] == target_reels[1] and target_reels[1] == target_reels[2]:
+                target_reels[2] = (target_reels[2] % 10) + 1
     else:
-        # Not a winner or slots full - consolation prize
+        # Loss
         prize = 200
         player['slot_prize'] = prize
-        print(f"Player {player['name']} got consolation prize: {prize}")
+        
+        # Determine visual pattern: Near Miss (40%) vs Random (60%)
+        if random.random() < 0.4:
+            # Near Miss: A, A, B
+            a = random.randint(1, 10)
+            b = (a % 10) + 1
+            target_reels = [a, a, b]
+            print(f"🎰 Player {player['name']} - Near Miss!")
+        else:
+            # Random: A, B, C (mostly)
+            target_reels = [random.randint(1, 10) for _ in range(3)]
+            # Ensure not winning
+            if target_reels[0] == target_reels[1] and target_reels[1] == target_reels[2]:
+                target_reels[2] = (target_reels[2] % 10) + 1
     
-    # Send result back to player
-    emit('slot_result_final', {
-        'won': is_winner and GAME_STATE.get('lucky_winners_count', 0) <= GAME_STATE.get('lucky_max_winners', 3),
+    # Send result to client to animate
+    emit('spin_result', {
+        'won': is_lucky_win,
         'prize': prize,
+        'target_reels': target_reels, # [1, 5, 2] indices
         'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
     }, room=player_id)
 
@@ -1195,6 +1243,12 @@ def calculate_and_emit_results():
         
         for i, player in enumerate(sorted_players):
             prize = amounts[i] if i < len(amounts) else 0
+            
+            # If player won a slot prize (lucky prize or consolation), override the default prize
+            # Only for rank > 3 (since top 3 get special prizes)
+            if i >= 3 and player.get('slot_prize'):
+                prize = player['slot_prize']
+                
             results.append({
                 'name': player['name'],
                 'rank': i + 1,

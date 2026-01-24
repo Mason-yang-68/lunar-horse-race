@@ -830,6 +830,13 @@
         </div>
         <div class="prize-row"><span class="medal">🥉</span> 第3名: <span class="amount" id="display-prize3">$600</span>
         </div>
+
+        <div id="lucky-winners-section" style="margin-top:15px;border-top:1px solid #666;padding-top:10px;">
+            <h4>🎰 幸運得主</h4>
+            <div id="lucky-winners-list">
+                <div style="font-size:12px;color:#aaa;">等待中...</div>
+            </div>
+        </div>
     </div>
 
     <div id="setup-screen">
@@ -2531,6 +2538,86 @@
 
         // Initialize prize display
         updatePrizeDisplay();
+        // ========= Helper functions =========
+        function playWinSound() {
+            // Play a celebratory sound
+            playShortWinSound();
+            fireworksSound.currentTime = 0;
+            fireworksSound.play().catch(e => { });
+        }
+
+        async function takeControl() {
+            // Password check for taking control
+            const password = prompt("請輸入接管密碼 (預設: 8888):", "");
+            if (password === null) return; // Cancelled
+
+            // Simple client-side check for now (or send to server)
+            if (password !== "8888") {
+                alert("密碼錯誤！無法接管控制權。");
+                return;
+            }
+
+            try {
+                const response = await fetch('/host/takeover', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ socket_id: socket.id })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('已取得控制權！');
+                    document.getElementById('status').innerText = '狀態: 主控端 (Controller)';
+                    document.getElementById('status').style.color = '#00FF00';
+                    isHostController = true;
+                    updateControlUI();
+                } else {
+                    alert('接管失敗: ' + data.message);
+                }
+            } catch (e) {
+                console.error('Takeover error:', e);
+                alert('接管請求失敗');
+            }
+        }
+
+        // Listener for Lucky Winners
+        socket.on('lucky_winner_update', (data) => {
+            console.log('Lucky winner!', data);
+
+            // Play win sound
+            playWinSound();
+
+            // Update UI list
+            const list = document.getElementById('lucky-winners-list');
+            if (list.innerText === '等待中...') {
+                list.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex;align-items:center;margin-bottom:5px;animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);';
+
+            // Avatar image (handle theme prefix)
+            let avatarHtml = '👤';
+            if (data.avatar_id) {
+                const folder = currentAvatarFolder || '';
+                const prefix = data.avatar_id.startsWith('hw_') ? 'mingchang/' : '';
+                // Construct path carefully. If both use 'static/images' base
+                // Actually server sends exact avatar_id.
+                // We know 'hw_' is in mingchang, others in root.
+                const isMingchang = data.avatar_id.startsWith('hw_');
+                const path = isMingchang ? `/static/images/mingchang/${data.avatar_id}.png` : `/static/images/${data.avatar_id}.png`;
+                avatarHtml = `<img src="${path}" style="width:20px;height:20px;margin-right:5px;object-fit:contain;" onerror="this.src='/static/images/horse1.png'">`;
+            }
+
+            item.innerHTML = `${avatarHtml} <span style="color:gold;font-weight:bold;">${data.player_name}</span> <span style="color:#00FF00;margin-left:auto;">$${data.prize}</span>`;
+            list.appendChild(item);
+
+            // Show toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(255,215,0,0.9);color:black;padding:20px 40px;border-radius:15px;font-size:24px;z-index:9999;font-weight:bold;box-shadow:0 0 20px gold;pointer-events:none;animation: popIn 0.5s;';
+            toast.innerHTML = `🎉 恭喜 ${data.player_name} 抽中幸運獎金 $${data.prize}！`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        });
     </script>
 </body>
 

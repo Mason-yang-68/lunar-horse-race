@@ -713,8 +713,12 @@
         });
 
         // ========= Lucky Slot Machine =========
+        let slotData = null; // Store theme data
+        let spinResultData = null; // Store server result
+
         socket.on('slot_machine_trigger', (data) => {
             console.log('Slot machine triggered!', data);
+            slotData = data;
             showSlotMachine(data);
         });
 
@@ -740,76 +744,91 @@
             `;
             document.body.appendChild(overlay);
 
-            // Build reel images
+            // Init reels
             for (let r = 1; r <= 3; r++) {
-                const reel = document.getElementById('reel' + r);
-                let html = '';
-                for (let i = 1; i <= 10; i++) {
-                    html += `<img src="${basePath}${prefix}${i}.png" style="width:80px;height:80px;object-fit:contain;">`;
-                }
-                for (let i = 1; i <= 10; i++) {
-                    html += `<img src="${basePath}${prefix}${i}.png" style="width:80px;height:80px;object-fit:contain;">`;
-                }
-                reel.innerHTML = html;
+                initReel(r, basePath, prefix);
             }
 
             document.getElementById('spin-btn').onclick = () => {
-                document.getElementById('spin-btn').disabled = true;
-                document.getElementById('spin-btn').style.opacity = '0.5';
-                spinReels(data);
+                const btn = document.getElementById('spin-btn');
+                btn.disabled = true;
+                btn.innerText = "轉動中...";
+                btn.style.opacity = '0.5';
+
+                // Start visual spinning immediately
+                startVisualSpinning();
+
+                // Request server for result
+                socket.emit('request_spin');
             };
         }
 
-        function spinReels(data) {
-            const results = [];
-            const canWin = data.lucky_slots_remaining > 0;
-            const willWin = canWin && Math.random() < 0.33;
-
-            if (willWin) {
-                const match = Math.floor(Math.random() * 10) + 1;
-                results.push(match, match, match);
-            } else {
-                results.push(Math.floor(Math.random() * 10) + 1);
-                results.push(Math.floor(Math.random() * 10) + 1);
-                results.push(Math.floor(Math.random() * 10) + 1);
-                if (results[0] === results[1] && results[1] === results[2]) {
-                    results[2] = (results[2] % 10) + 1;
-                }
-            }
-
-            const durations = [2000, 2500, 3000];
-            for (let r = 0; r < 3; r++) {
-                animateReel(r + 1, results[r], durations[r]);
-            }
-
-            setTimeout(() => {
-                const won = results[0] === results[1] && results[1] === results[2];
-                socket.emit('slot_result', { won: won, results: results });
-            }, 3200);
-        }
-
-        function animateReel(reelNum, finalValue, duration) {
+        function initReel(reelNum, basePath, prefix) {
             const reel = document.getElementById('reel' + reelNum);
-            let pos = 0;
-            const speed = 15;
-            const startTime = Date.now();
-
-            const animate = () => {
-                const elapsed = Date.now() - startTime;
-                if (elapsed < duration - 500) {
-                    pos += speed;
-                    reel.style.transform = `translateY(-${pos % 800}px)`;
-                    requestAnimationFrame(animate);
-                } else {
-                    const finalPos = (finalValue - 1) * 80;
-                    reel.style.transition = 'transform 0.5s ease-out';
-                    reel.style.transform = `translateY(-${finalPos}px)`;
+            let html = '';
+            // 10 images looped 3 times for smooth infinite scroll simulation
+            for (let loop = 0; loop < 3; loop++) {
+                for (let i = 1; i <= 10; i++) {
+                    html += `<div style="height:80px;display:flex;align-items:center;justify-content:center;"><img src="${basePath}${prefix}${i}.png" style="width:70px;height:70px;object-fit:contain;" onerror="this.src='/static/images/horse1.png'"></div>`;
                 }
-            };
-            animate();
+            }
+            reel.innerHTML = html;
         }
 
-        socket.on('slot_result_final', (data) => {
+        let spinningIntervals = [];
+
+        function startVisualSpinning() {
+            // Simply keep scrolling reels until result comes
+            for (let r = 1; r <= 3; r++) {
+                const reel = document.getElementById('reel' + r);
+                let pos = 0;
+                const interval = setInterval(() => {
+                    pos += 20 + Math.random() * 10; // Random speed
+                    reel.style.transform = `translateY(-${pos % 800}px)`; // Loop every 10 items (80px * 10 = 800)
+                }, 16);
+                spinningIntervals.push({ id: interval, el: reel, pos: pos });
+            }
+        }
+
+        socket.on('spin_result', (data) => {
+            console.log("Got spin result:", data);
+            spinResultData = data;
+            stopReels(data.target_reels);
+        });
+
+        function stopReels(targets) {
+            // Stop one by one with delay
+            const delays = [500, 1500, 2500];
+
+            targets.forEach((targetVal, index) => {
+                setTimeout(() => {
+                    const reelObj = spinningIntervals[index];
+                    clearInterval(reelObj.id);
+
+                    // Final position calculation
+                    // targetVal is 1-10.
+                    // We want to land on the middle set of images (indices 11-20)
+                    // Item i is at (i-1)*80.
+                    // Target image is at (10 + targetVal - 1) * 80
+                    const finalPos = (10 + targetVal - 1) * 80;
+
+                    const reel = reelObj.el;
+                    reel.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1)';
+                    reel.style.transform = `translateY(-${finalPos}px)`;
+
+                    // Play stopping sound here if possible
+                    if (navigator.vibrate) navigator.vibrate(50);
+
+                }, delays[index]);
+            });
+
+            // Show final result
+            setTimeout(() => {
+                showResultPopup(spinResultData);
+            }, delays[2] + 800);
+        }
+
+        function showResultPopup(data) {
             const msgEl = document.getElementById('slot-message');
             if (data.won) {
                 msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${data.prize}</div>`;
@@ -818,11 +837,16 @@
                 msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">💰 獎金</div><div style="font-size:32px;color:white;margin-top:10px;">$${data.prize}</div>`;
                 if (navigator.vibrate) navigator.vibrate([100]);
             }
+
+            document.getElementById('spin-btn').style.display = 'none';
+
+            // Auto close after 5 seconds
             setTimeout(() => {
                 const overlay = document.getElementById('slot-overlay');
                 if (overlay) overlay.remove();
-            }, 5000);
-        });
+            }, 6000);
+        }
+
         // ========================================
 
         // Quiz alert sound (using Web Audio API for better iOS compatibility)
