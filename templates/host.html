@@ -767,7 +767,6 @@
             }
         }
 
-        /* Offline indicator blink animation */
         @keyframes blink {
 
             0%,
@@ -778,6 +777,31 @@
             50% {
                 opacity: 0.3;
             }
+        }
+
+        /* Boost animation preserving direction */
+        .track-player.boosted img {
+            animation: horse-boost 0.5s infinite alternate ease-in-out !important;
+            filter: drop-shadow(0 0 15px gold);
+            z-index: 20;
+        }
+
+        @keyframes horse-boost {
+            0% {
+                transform: scale(1.2) scaleX(var(--horse-dir, 1));
+            }
+
+            100% {
+                transform: scale(1.6) scaleX(var(--horse-dir, 1));
+            }
+        }
+
+        /* Slowed animation preserving direction */
+        .track-player.slowed img {
+            filter: sepia(1) hue-rotate(200deg) blur(1px);
+            opacity: 0.8;
+            transform: scale(0.9) scaleX(var(--horse-dir, 1));
+            transition: transform 0.3s;
         }
     </style>
 </head>
