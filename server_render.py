@@ -943,7 +943,8 @@ def on_quiz_timeout(data):
 @socketio.on('request_spin')
 def on_request_spin(data):
     """Handle slot machine spin request - Server determines result"""
-    if GAME_STATE['status'] != 'RACING':
+    # Allow spin during RACING or even after FINISHED (for slow players)
+    if GAME_STATE['status'] not in ['RACING', 'FINISHED']:
         return
     
     player_id = request.sid
