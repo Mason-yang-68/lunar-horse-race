@@ -703,7 +703,11 @@
                 else if (myResult.rank === 3) medalEmoji = '🥉 ';
 
                 document.getElementById('my-rank').innerText = medalEmoji + "名次: #" + myResult.rank;
-                document.getElementById('my-prize').innerText = "獎金: $" + myResult.prize;
+                if (myResult.prize === -1) {
+                    document.getElementById('my-prize').innerHTML = "獎金: <span style='color:yellow;animation:blink 1s infinite'>等待拉霸...</span>";
+                } else {
+                    document.getElementById('my-prize').innerText = "獎金: $" + myResult.prize;
+                }
 
                 // Vibrate for excitement
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
@@ -713,12 +717,8 @@
         });
 
         // ========= Lucky Slot Machine =========
-        let slotData = null; // Store theme data
-        let spinResultData = null; // Store server result
-
         socket.on('slot_machine_trigger', (data) => {
             console.log('Slot machine triggered!', data);
-            slotData = data;
             showSlotMachine(data);
         });
 
@@ -744,109 +744,93 @@
             `;
             document.body.appendChild(overlay);
 
-            // Init reels
+            // Build reel images
             for (let r = 1; r <= 3; r++) {
-                initReel(r, basePath, prefix);
+                const reel = document.getElementById('reel' + r);
+                let html = '';
+                for (let i = 1; i <= 10; i++) {
+                    html += `<img src="${basePath}${prefix}${i}.png" style="width:80px;height:80px;object-fit:contain;">`;
+                }
+                for (let i = 1; i <= 10; i++) {
+                    html += `<img src="${basePath}${prefix}${i}.png" style="width:80px;height:80px;object-fit:contain;">`;
+                }
+                reel.innerHTML = html;
             }
 
             document.getElementById('spin-btn').onclick = () => {
-                const btn = document.getElementById('spin-btn');
-                btn.disabled = true;
-                btn.innerText = "轉動中...";
-                btn.style.opacity = '0.5';
-
-                // Start visual spinning immediately
-                startVisualSpinning();
-
-                // Request server for result
-                socket.emit('request_spin');
+                document.getElementById('spin-btn').disabled = true;
+                document.getElementById('spin-btn').style.opacity = '0.5';
+                socket.emit('slot_spin_start');
             };
         }
 
-        function initReel(reelNum, basePath, prefix) {
-            const reel = document.getElementById('reel' + reelNum);
-            let html = '';
-            // 10 images looped 3 times for smooth infinite scroll simulation
-            for (let loop = 0; loop < 3; loop++) {
-                for (let i = 1; i <= 10; i++) {
-                    html += `<div style="height:80px;display:flex;align-items:center;justify-content:center;"><img src="${basePath}${prefix}${i}.png" style="width:70px;height:70px;object-fit:contain;" onerror="this.src='/static/images/horse1.png'"></div>`;
-                }
-            }
-            reel.innerHTML = html;
-        }
-
-        let spinningIntervals = [];
-
-        function startVisualSpinning() {
-            // Simply keep scrolling reels until result comes
-            for (let r = 1; r <= 3; r++) {
-                const reel = document.getElementById('reel' + r);
-                let pos = 0;
-                const interval = setInterval(() => {
-                    pos += 20 + Math.random() * 10; // Random speed
-                    reel.style.transform = `translateY(-${pos % 800}px)`; // Loop every 10 items (80px * 10 = 800)
-                }, 16);
-                spinningIntervals.push({ id: interval, el: reel, pos: pos });
-            }
-        }
-
-        socket.on('spin_result', (data) => {
-            console.log("Got spin result:", data);
-            spinResultData = data;
-            stopReels(data.target_reels);
+        socket.on('slot_spin_result', (data) => {
+            console.log('Spin result:', data);
+            spinReels(data.stops, data.result_type);
         });
 
-        function stopReels(targets) {
-            // Stop one by one with delay
-            const delays = [500, 1500, 2500];
+        function spinReels(stops, resultType) {
+            // stops is array of indices [0-9]
+            // We need to map them to 1-10 for the animation logic
+            const finalValues = stops.map(s => s + 1);
 
-            targets.forEach((targetVal, index) => {
-                setTimeout(() => {
-                    const reelObj = spinningIntervals[index];
-                    clearInterval(reelObj.id);
+            const durations = [2000, 2500, 3000];
 
-                    // Final position calculation
-                    // targetVal is 1-10.
-                    // We want to land on the middle set of images (indices 11-20)
-                    // Item i is at (i-1)*80.
-                    // Target image is at (10 + targetVal - 1) * 80
-                    const finalPos = (10 + targetVal - 1) * 80;
-
-                    const reel = reelObj.el;
-                    reel.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.3, 1)';
-                    reel.style.transform = `translateY(-${finalPos}px)`;
-
-                    // Play stopping sound here if possible
-                    if (navigator.vibrate) navigator.vibrate(50);
-
-                }, delays[index]);
-            });
-
-            // Show final result
-            setTimeout(() => {
-                showResultPopup(spinResultData);
-            }, delays[2] + 800);
-        }
-
-        function showResultPopup(data) {
-            const msgEl = document.getElementById('slot-message');
-            if (data.won) {
-                msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${data.prize}</div>`;
-                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
-            } else {
-                msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">💰 獎金</div><div style="font-size:32px;color:white;margin-top:10px;">$${data.prize}</div>`;
-                if (navigator.vibrate) navigator.vibrate([100]);
+            // If near-miss, maybe extend the last reel duration?
+            if (resultType === 'near-miss') {
+                durations[2] = 4500; // Build suspense
             }
 
-            document.getElementById('spin-btn').style.display = 'none';
+            for (let r = 0; r < 3; r++) {
+                animateReel(r + 1, finalValues[r], durations[r]);
+            }
 
-            // Auto close after 5 seconds
+            // Wait for longest animation to finish
+            const maxDuration = Math.max(...durations);
+            setTimeout(() => {
+                socket.emit('slot_animation_complete');
+            }, maxDuration + 500);
+        }
+
+        function animateReel(reelNum, finalValue, duration) {
+            const reel = document.getElementById('reel' + reelNum);
+            let pos = 0;
+            const speed = 15;
+            const startTime = Date.now();
+
+            const animate = () => {
+                const elapsed = Date.now() - startTime;
+                if (elapsed < duration - 500) {
+                    pos += speed;
+                    reel.style.transform = `translateY(-${pos % 800}px)`;
+                    requestAnimationFrame(animate);
+                } else {
+                    const finalPos = (finalValue - 1) * 80;
+                    reel.style.transition = 'transform 0.5s ease-out';
+                    reel.style.transform = `translateY(-${finalPos}px)`;
+                }
+            };
+            animate();
+        }
+
+        socket.on('slot_result_final', (data) => {
+            const msgEl = document.getElementById('slot-message');
+            if (data.isWin) {
+                msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${data.amount}</div>`;
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+
+                // Play win sound
+                const winAudio = new Audio('/static/sounds/slot-machine-coin-payout-1-188227.mp3');
+                winAudio.play().catch(e => console.log('Audio play failed', e));
+            } else {
+                msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">💰 獎金</div><div style="font-size:32px;color:white;margin-top:10px;">$${data.amount}</div>`;
+                if (navigator.vibrate) navigator.vibrate([100]);
+            }
             setTimeout(() => {
                 const overlay = document.getElementById('slot-overlay');
                 if (overlay) overlay.remove();
-            }, 6000);
-        }
-
+            }, 5000);
+        });
         // ========================================
 
         // Quiz alert sound (using Web Audio API for better iOS compatibility)
