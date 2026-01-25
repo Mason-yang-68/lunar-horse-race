@@ -804,11 +804,11 @@
             </div>
 
             <div style="display:flex;gap:15px;justify-content:center;">
-                <button onclick="submitPassword()"
+                <button onclick="window.HostLogic.submitPassword()"
                     style="padding:15px 30px;font-size:16px;background:linear-gradient(145deg,#28a745,#1e7e34);color:white;border:none;border-radius:10px;cursor:pointer;">
                     ✅ 確認進入
                 </button>
-                <button onclick="enterAsViewer()"
+                <button onclick="window.HostLogic.enterAsViewer()"
                     style="padding:15px 30px;font-size:16px;background:linear-gradient(145deg,#6c757d,#5a6268);color:white;border:none;border-radius:10px;cursor:pointer;">
                     👁️ 觀看模式
                 </button>
@@ -830,481 +830,538 @@
         </div>
         <div class="prize-row"><span class="medal">🥉</span> 第3名: <span class="amount" id="display-prize3">$600</span>
         </div>
-        <!-- Race Setup Screen -->
-        <div id="setup-screen" class="container">
-            <h1>🧧 金蛇迎春 賽馬大亂鬥 🧧</h1>
+    </div>
 
-            <!-- Takeover Confirmation Modal -->
-            <div id="takeover-modal" class="modal">
-                <div class="modal-content">
-                    <span class="close"
-                        onclick="document.getElementById('takeover-modal').style.display='none'">&times;</span>
-                    <h2 style="color: #FFD700; text-align: center; margin-bottom: 20px;">⚠️ 接管主控權</h2>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <p>請輸入接管密碼以確認身份:</p>
-                        <input type="password" id="takeover-password"
-                            style="font-size: 18px; padding: 10px; width: 200px; text-align: center; border-radius: 5px; border: 1px solid #666; background: #333; color: white;"
-                            placeholder="輸入密碼">
-                    </div>
-                    <div style="display: flex; justify-content: center; gap: 20px;">
-                        <button class="btn btn-secondary"
-                            onclick="document.getElementById('takeover-modal').style.display='none'">取消</button>
-                        <button class="btn btn-danger" onclick="confirmTakeover()">確認接管</button>
-                    </div>
-                </div>
+    <div id="setup-screen">
+        <h1>🧧 金馬迎春 - 新年紅包賽跑 🧧</h1>
+
+        <!-- Top 3 Prize Inputs -->
+        <div class="top3-input-group">
+            <div class="top3-input">
+                <label>🥇 第1名獎金</label>
+                <input type="number" id="prize1" value="1000" onchange="updatePrizeDisplay()">
             </div>
-
-            <!-- Top 3 Prize Inputs -->
-            <div class="top3-input-group">
-                <div class="top3-input">
-                    <label>🥇 第1名獎金</label>
-                    <input type="number" id="prize1" value="1000" onchange="updatePrizeDisplay()">
-                </div>
-                <div class="top3-input">
-                    <label>🥈 第2名獎金</label>
-                    <input type="number" id="prize2" value="800" onchange="updatePrizeDisplay()">
-                </div>
-                <div class="top3-input">
-                    <label>🥉 第3名獎金</label>
-                    <input type="number" id="prize3" value="600" onchange="updatePrizeDisplay()">
-                </div>
-                <div class="top3-input" style="border-color: #FF69B4;">
-                    <label style="color: #FF69B4;">🎰 幸運獎金</label>
-                    <input type="number" id="lucky-prize" value="500" onchange="updatePrizeDisplay()">
-                    <span style="font-size:10px;color:#aaa;">限3名中獎</span>
-                </div>
+            <div class="top3-input">
+                <label>🥈 第2名獎金</label>
+                <input type="number" id="prize2" value="800" onchange="updatePrizeDisplay()">
             </div>
-
-            <div class="setup-content">
-                <!-- QR Code Section -->
-                <div class="qr-section">
-                    <div id="qrcode-container"></div>
-                    <h4>掃描加入! <br><span id="join-url" style="font-size:12px;"></span></h4>
-                    <div class="player-count-badge">
-                        已加入: <span id="player-count">0</span> 人
-                    </div>
-                    <!-- Theme switcher (subtle design) -->
-                    <div id="theme-switcher" style="margin-top:10px;font-size:12px;opacity:0.7;">
-                        <select id="theme-select" onchange="switchTheme(this.value)"
-                            style="padding:5px 10px;border-radius:5px;border:1px solid #666;background:#333;color:#ccc;font-size:12px;cursor:pointer;">
-                            <option value="hashimae">橋前駅版</option>
-                            <option value="mingchang">明昌五金行版</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Oval Track Preview Section -->
-                <div class="track-section">
-                    <div class="oval-track-container" id="oval-track-container">
-                        <div class="oval-track" id="oval-track">
-                            <!-- Players will be positioned here -->
-                        </div>
-                    </div>
-                </div>
+            <div class="top3-input">
+                <label>🥉 第3名獎金</label>
+                <input type="number" id="prize3" value="600" onchange="updatePrizeDisplay()">
             </div>
-
-            <button class="btn host-control-btn" onclick="startRace()">開始賽跑 / START RACE 🏁</button>
-            <button class="btn host-control-btn" onclick="addBots(1)"
-                style="background:linear-gradient(145deg,#444,#222);margin-left:10px;font-size:14px;padding:10px 20px;">+1
-                🎮 加入電腦玩家</button>
-            <a href="/tutorial" target="_blank" class="btn"
-                style="background:linear-gradient(145deg,#2196F3,#1976D2);margin-left:10px;font-size:14px;padding:10px 20px;text-decoration:none;display:inline-block;">📖
-                遊戲說明</a>
+            <div class="top3-input" style="border-color: #FF69B4;">
+                <label style="color: #FF69B4;">🎰 幸運獎金</label>
+                <input type="number" id="lucky-prize" value="500" onchange="updatePrizeDisplay()">
+                <span style="font-size:10px;color:#aaa;">限3名中獎</span>
+            </div>
         </div>
 
-        <div id="race-screen" style="display: none;">
-            <h1>賽跑進行中... 用力搖手機! 📱💨</h1>
-            <div class="oval-track-container" id="race-oval-container">
-                <div class="oval-track" id="race-oval-track">
-                    <!-- Race horses will be positioned here -->
+        <div class="setup-content">
+            <!-- QR Code Section -->
+            <div class="qr-section">
+                <div id="qrcode-container"></div>
+                <h4>掃描加入! <br><span id="join-url" style="font-size:12px;"></span></h4>
+                <div class="player-count-badge">
+                    已加入: <span id="player-count">0</span> 人
                 </div>
-            </div>
-            <!-- Horse-shaped floating greetings clouds - entire bottom parking lot area -->
-            <div class="horse-clouds-container"
-                style="position:fixed;bottom:0;left:0;right:0;height:25%;overflow:hidden;pointer-events:none;z-index:5;">
-                <!-- Row 1 - Top of parking area -->
-                <div class="horse-cloud speed" style="animation:speed-cloud 8s ease-in infinite;top:10%;">馬到成功</div>
-                <div class="horse-cloud speed" style="animation:speed-cloud 7s ease-in infinite 2s;top:15%;">萬馬奔騰</div>
-                <div class="horse-cloud speed" style="animation:speed-cloud 6s ease-in infinite 4s;top:5%;">一馬當先</div>
-                <!-- Row 2 - Middle -->
-                <div class="horse-cloud speed" style="animation:speed-cloud 9s ease-in infinite 1s;top:40%;">龍馬精神</div>
-                <div class="horse-cloud speed" style="animation:speed-cloud 5s ease-in infinite 3s;top:45%;">馬年大吉</div>
-                <div class="horse-cloud speed" style="animation:speed-cloud 7s ease-in infinite 5s;top:35%;">駿馬揚蹄</div>
-                <!-- Row 3 - Bottom -->
-                <div class="horse-cloud speed" style="animation:speed-cloud 6s ease-in infinite 0.5s;top:70%;">快馬加鞭
-                </div>
-                <div class="horse-cloud speed" style="animation:speed-cloud 8s ease-in infinite 2.5s;top:75%;">馬上有錢
-                </div>
-                <div class="horse-cloud speed" style="animation:speed-cloud 5s ease-in infinite 4.5s;top:65%;">萬事如意
+                <!-- Theme switcher (subtle design) -->
+                <div id="theme-switcher" style="margin-top:10px;font-size:12px;opacity:0.7;">
+                    <select id="theme-select" onchange="switchTheme(this.value)"
+                        style="padding:5px 10px;border-radius:5px;border:1px solid #666;background:#333;color:#ccc;font-size:12px;cursor:pointer;">
+                        <option value="hashimae">橋前駅版</option>
+                        <option value="mingchang">明昌五金行版</option>
+                    </select>
                 </div>
             </div>
 
-            <!-- Live Leaderboard (left side) -->
-            <div id="live-leaderboard"
-                style="position:fixed;top:15%;left:10px;width:180px;background:linear-gradient(135deg,rgba(139,0,0,0.9),rgba(80,0,0,0.95));border:3px solid gold;border-radius:15px;padding:10px;z-index:100;display:none;">
-                <div style="text-align:center;font-size:16px;color:gold;font-weight:bold;margin-bottom:8px;">🏆 即時榜單
+            <!-- Oval Track Preview Section -->
+            <div class="track-section">
+                <div class="oval-track-container" id="oval-track-container">
+                    <div class="oval-track" id="oval-track">
+                        <!-- Players will be positioned here -->
+                    </div>
                 </div>
-                <div id="leaderboard-entries" style="color:white;font-size:14px;"></div>
             </div>
-
-            <style>
-                .horse-cloud {
-                    font-size: 14px;
-                    font-weight: bold;
-                    color: #FFD700;
-                    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3);
-                    background: linear-gradient(135deg, rgba(139, 0, 0, 0.85), rgba(100, 20, 20, 0.9));
-                    padding: 8px 20px 8px 15px;
-                    border-radius: 25px 15px 15px 25px;
-                    border: 2px solid gold;
-                    position: absolute;
-                    white-space: nowrap;
-                    /* Horse-like shape with tail effect */
-                    border-left: 4px solid #FFD700;
-                    box-shadow: -5px 0 0 rgba(139, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
-                }
-
-                .horse-cloud::before {
-                    content: '🐴';
-                    font-size: 18px;
-                    margin-right: 5px;
-                }
-
-                @keyframes speed-cloud {
-                    0% {
-                        left: 110%;
-                        opacity: 0;
-                        transform: scale(0.7);
-                    }
-
-                    10% {
-                        opacity: 1;
-                        transform: scale(0.8);
-                    }
-
-                    30% {
-                        transform: scale(0.9);
-                    }
-
-                    70% {
-                        transform: scale(1);
-                    }
-
-                    90% {
-                        opacity: 1;
-                    }
-
-                    100% {
-                        left: -25%;
-                        opacity: 0;
-                        transform: scale(1.1);
-                    }
-                }
-            </style>
-            <div
-                style="position:fixed;bottom:10px;right:15px;font-size:12px;color:rgba(255,215,0,0.6);pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.5);z-index:10;">
-                🐴 designed by Mason Yang</div>
         </div>
 
-        <div id="results-screen" style="display: none;">
-            <h1>🏆 比賽結果 🏆</h1>
-            <div id="winners-list">
-                <!-- Winners table -->
+        <button class="btn host-control-btn" onclick="window.HostLogic.startRace()">開始賽跑 / START RACE 🏁</button>
+        <button class="btn host-control-btn" onclick="addBots(1)"
+            style="background:linear-gradient(145deg,#444,#222);margin-left:10px;font-size:14px;padding:10px 20px;">+1
+            🎮 加入電腦玩家</button>
+        <a href="/tutorial" target="_blank" class="btn"
+            style="background:linear-gradient(145deg,#2196F3,#1976D2);margin-left:10px;font-size:14px;padding:10px 20px;text-decoration:none;display:inline-block;">📖
+            遊戲說明</a>
+    </div>
+
+    <div id="race-screen" style="display: none;">
+        <h1>賽跑進行中... 用力搖手機! 📱💨</h1>
+        <div class="oval-track-container" id="race-oval-container">
+            <div class="oval-track" id="race-oval-track">
+                <!-- Race horses will be positioned here -->
             </div>
-            <button class="btn host-control-btn" onclick="resetGame()">再來一局 / PLAY AGAIN 🔄</button>
+        </div>
+        <!-- Horse-shaped floating greetings clouds - entire bottom parking lot area -->
+        <div class="horse-clouds-container"
+            style="position:fixed;bottom:0;left:0;right:0;height:25%;overflow:hidden;pointer-events:none;z-index:5;">
+            <!-- Row 1 - Top of parking area -->
+            <div class="horse-cloud speed" style="animation:speed-cloud 8s ease-in infinite;top:10%;">馬到成功</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 7s ease-in infinite 2s;top:15%;">萬馬奔騰</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 6s ease-in infinite 4s;top:5%;">一馬當先</div>
+            <!-- Row 2 - Middle -->
+            <div class="horse-cloud speed" style="animation:speed-cloud 9s ease-in infinite 1s;top:40%;">龍馬精神</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 5s ease-in infinite 3s;top:45%;">馬年大吉</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 7s ease-in infinite 5s;top:35%;">駿馬揚蹄</div>
+            <!-- Row 3 - Bottom -->
+            <div class="horse-cloud speed" style="animation:speed-cloud 6s ease-in infinite 0.5s;top:70%;">快馬加鞭</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 8s ease-in infinite 2.5s;top:75%;">馬上有錢</div>
+            <div class="horse-cloud speed" style="animation:speed-cloud 5s ease-in infinite 4.5s;top:65%;">萬事如意</div>
         </div>
 
-        <script>
-            const socket = io();
-            let totalPrize = 0;
-            let players = [];
-            let currentLeader = null; // Track current leader for cheer sound
-            let leaderInitialized = false; // Track if leader was set for the first time
-            let activeItems = {}; // Track active items on track
-            let isHostController = false; // Whether this HOST has control
+        <!-- Live Leaderboard (left side) -->
+        <div id="live-leaderboard"
+            style="position:fixed;top:15%;left:10px;width:180px;background:linear-gradient(135deg,rgba(139,0,0,0.9),rgba(80,0,0,0.95));border:3px solid gold;border-radius:15px;padding:10px;z-index:100;display:none;">
+            <div style="text-align:center;font-size:16px;color:gold;font-weight:bold;margin-bottom:8px;">🏆 即時榜單</div>
+            <div id="leaderboard-entries" style="color:white;font-size:14px;"></div>
+        </div>
 
-            // Register as HOST when connected
-            socket.on('connect', () => {
-                console.log('HOST connected, registering...');
-                socket.emit('host_register');
-            });
+        <style>
+            .horse-cloud {
+                font-size: 14px;
+                font-weight: bold;
+                color: #FFD700;
+                text-shadow: 0 0 5px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.3);
+                background: linear-gradient(135deg, rgba(139, 0, 0, 0.85), rgba(100, 20, 20, 0.9));
+                padding: 8px 20px 8px 15px;
+                border-radius: 25px 15px 15px 25px;
+                border: 2px solid gold;
+                position: absolute;
+                white-space: nowrap;
+                /* Horse-like shape with tail effect */
+                border-left: 4px solid #FFD700;
+                box-shadow: -5px 0 0 rgba(139, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
 
-            // PASSWORD VERIFICATION
-            const CORRECT_PASSWORD = '321';
-            let passwordVerified = false;
+            .horse-cloud::before {
+                content: '🐴';
+                font-size: 18px;
+                margin-right: 5px;
+            }
 
-            function submitPassword() {
-                const password = document.getElementById('host-password').value;
-                const selectedTheme = document.getElementById('password-theme-select').value;
+            @keyframes speed-cloud {
+                0% {
+                    left: 110%;
+                    opacity: 0;
+                    transform: scale(0.7);
+                }
 
-                if (password === CORRECT_PASSWORD) {
-                    passwordVerified = true;
-                    document.getElementById('password-overlay').style.display = 'none';
+                10% {
+                    opacity: 1;
+                    transform: scale(0.8);
+                }
 
-                    // Set the selected theme
-                    socket.emit('set_theme', { theme_id: selectedTheme });
-                    document.getElementById('theme-select').value = selectedTheme;
+                30% {
+                    transform: scale(0.9);
+                }
 
-                    console.log('Password verified! Controller mode, theme:', selectedTheme);
+                70% {
+                    transform: scale(1);
+                }
+
+                90% {
+                    opacity: 1;
+                }
+
+                100% {
+                    left: -25%;
+                    opacity: 0;
+                    transform: scale(1.1);
+                }
+            }
+        </style>
+        <div
+            style="position:fixed;bottom:10px;right:15px;font-size:12px;color:rgba(255,215,0,0.6);pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.5);z-index:10;">
+            🐴 designed by Mason Yang</div>
+    </div>
+
+    <div id="results-screen" style="display: none;">
+        <h1>🏆 比賽結果 🏆</h1>
+        <div id="winners-list">
+            <!-- Winners table -->
+        </div>
+        <button class="btn host-control-btn" onclick="resetGame()">再來一局 / PLAY AGAIN 🔄</button>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/audio_manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/host_game_logic.js') }}"></script>
+    <script>
+        const socket = io();
+
+        // Init Logic Modules
+        window.addEventListener('load', () => {
+            if (window.HostLogic) {
+                window.HostLogic.init(socket);
+                // Bridge for AudioManager
+                window.isRaceStillRunning = window.HostLogic.isRaceRunning;
+            }
+        });
+
+        // Audio Init
+        document.addEventListener('click', function startAudio() {
+            if (window.AudioManager) {
+                window.AudioManager.init();
+                window.AudioManager.startWaitingMusic();
+            }
+            document.removeEventListener('click', startAudio);
+        }, { once: true });
+        let totalPrize = 0;
+        let players = [];
+        let currentLeader = null; // Track current leader for cheer sound
+        let leaderInitialized = false; // Track if leader was set for the first time
+        let activeItems = {}; // Track active items on track
+        let isHostController = false; // Whether this HOST has control
+
+        // Register as HOST when connected
+        socket.on('connect', () => {
+            console.log('HOST connected, registering...');
+            socket.emit('host_register');
+        });
+
+        // PASSWORD VERIFICATION
+        const CORRECT_PASSWORD = '321';
+        let passwordVerified = false;
+
+        // PASSWORD VERIFICATION delegation to HostLogic
+        // The submitPassword function has been moved to host_game_logic.js
+        // We leave this empty or remove it.
+
+        function enterAsViewer() {
+            passwordVerified = false;
+            document.getElementById('password-overlay').style.display = 'none';
+            console.log('Entering as viewer');
+        }
+
+        // Allow Enter key to submit password
+        document.getElementById('host-password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && window.HostLogic) window.HostLogic.submitPassword();
+        });
+
+        // Handle HOST status response
+        socket.on('host_status', (data) => {
+            console.log('HOST status:', data);
+            isHostController = data.is_controller;
+            updateHostControlUI(data);
+        });
+
+        // Handle controller going offline
+        socket.on('host_controller_offline', (data) => {
+            console.log('HOST controller went offline, timeout:', data.timeout);
+            if (!isHostController) {
+                showTakeoverCountdown(data.timeout);
+            }
+        });
+
+        // Handle controller coming back online
+        socket.on('host_controller_online', () => {
+            console.log('HOST controller is back online');
+            hideTakeoverCountdown();
+        });
+
+        // Sync game state for viewers (shows same screen as controller)
+        socket.on('game_state_sync', (data) => {
+            console.log('Game state sync:', data);
+
+            // Update players array
+            players = data.players || [];
+
+            // Update screen based on game status
+            if (data.status === 'RACING') {
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('race-screen').style.display = 'block';
+                document.getElementById('results-screen').style.display = 'none';
+                // Update track with current player positions
+                updateOvalTrack(players, 'race-oval-track');
+            } else if (data.status === 'WAITING') {
+                document.getElementById('setup-screen').style.display = 'block';
+                document.getElementById('race-screen').style.display = 'none';
+                document.getElementById('results-screen').style.display = 'none';
+                updateOvalTrack(players, 'oval-track');
+            } else if (data.status === 'FINISHED') {
+                document.getElementById('setup-screen').style.display = 'none';
+                document.getElementById('race-screen').style.display = 'none';
+                document.getElementById('results-screen').style.display = 'block';
+            }
+        });
+
+        // Update live leaderboard when slot result comes in
+        socket.on('slot_result_final', (data) => {
+            console.log('[LEADERBOARD] Slot result received:', data);
+
+            // Try to find the leaderboard row for this player
+            let row = document.getElementById(`leaderboard-row-${data.player_id}`);
+
+            // Fallback: Search by player name if ID doesn't match
+            if (!row && data.player_name) {
+                const entries = document.getElementById('live-leaderboard-entries');
+                if (entries) {
+                    const allRows = entries.querySelectorAll('div[id^="leaderboard-row-"]');
+                    for (const r of allRows) {
+                        if (r.textContent.includes(data.player_name)) {
+                            row = r;
+                            console.log('[LEADERBOARD] Found row by name:', data.player_name);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (row) {
+                console.log('[LEADERBOARD] Updating row:', row.id);
+                const prizeSpan = row.querySelector('.prize-value');
+                if (prizeSpan) {
+                    if (data.won) {
+                        prizeSpan.outerHTML = `<span style="color:#00FF00;float:right;font-weight:bold;">🎉 $${data.prize}</span>`;
+                    } else {
+                        prizeSpan.outerHTML = `<span style="color:gold;float:right;font-weight:bold;">$${data.prize}</span>`;
+                    }
+                    // Flash animation
+                    row.animate([
+                        { backgroundColor: data.won ? 'rgba(0,255,0,0.3)' : 'rgba(255,215,0,0.3)' },
+                        { backgroundColor: 'transparent' }
+                    ], { duration: 1000 });
                 } else {
-                    alert('密碼錯誤！請重新輸入或選擇觀看模式');
-                }
-            }
-
-            function enterAsViewer() {
-                passwordVerified = false;
-                document.getElementById('password-overlay').style.display = 'none';
-                console.log('Entering as viewer');
-            }
-
-            // Allow Enter key to submit password
-            document.getElementById('host-password').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') submitPassword();
-            });
-
-            // Handle HOST status response
-            socket.on('host_status', (data) => {
-                console.log('HOST status:', data);
-                isHostController = data.is_controller;
-                updateHostControlUI(data);
-            });
-
-            // Handle controller going offline
-            socket.on('host_controller_offline', (data) => {
-                console.log('HOST controller went offline, timeout:', data.timeout);
-                if (!isHostController) {
-                    showTakeoverCountdown(data.timeout);
-                }
-            });
-
-            // Handle controller coming back online
-            socket.on('host_controller_online', () => {
-                console.log('HOST controller is back online');
-                hideTakeoverCountdown();
-            });
-
-            // Sync game state for viewers (shows same screen as controller)
-            socket.on('game_state_sync', (data) => {
-                console.log('Game state sync:', data);
-
-                // Update players array
-                players = data.players || [];
-
-                // Update screen based on game status
-                if (data.status === 'RACING') {
-                    document.getElementById('setup-screen').style.display = 'none';
-                    document.getElementById('race-screen').style.display = 'block';
-                    document.getElementById('results-screen').style.display = 'none';
-                    // Update track with current player positions
-                    updateOvalTrack(players, 'race-oval-track');
-                } else if (data.status === 'WAITING') {
-                    document.getElementById('setup-screen').style.display = 'block';
-                    document.getElementById('race-screen').style.display = 'none';
-                    document.getElementById('results-screen').style.display = 'none';
-                    updateOvalTrack(players, 'oval-track');
-                } else if (data.status === 'FINISHED') {
-                    document.getElementById('setup-screen').style.display = 'none';
-                    document.getElementById('race-screen').style.display = 'none';
-                    document.getElementById('results-screen').style.display = 'block';
-                }
-            });
-
-
-            function confirmTakeover() {
-                const password = document.getElementById('takeover-password').value;
-                socket.emit('host_takeover', { password: password });
-                document.getElementById('takeover-modal').style.display = 'none';
-            }
-
-            // Listen for takeover fail
-            socket.on('takeover_failed', (data) => {
-                alert('❌ 接管失敗: ' + (data.reason || '密碼錯誤'));
-            });
-            // Update UI based on HOST control status
-            function updateHostControlUI(data) {
-                // Remove existing status banner if present
-                let banner = document.getElementById('host-control-banner');
-                if (!banner) {
-                    banner = document.createElement('div');
-                    banner.id = 'host-control-banner';
-                    // Position in top-left corner, small label that doesn't cover main content
-                    banner.style.cssText = 'position:fixed;top:10px;left:10px;padding:8px 15px;font-size:14px;font-weight:bold;z-index:10000;border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.3);';
-                    document.body.appendChild(banner);
-                }
-
-                if (data.is_controller) {
-                    banner.style.background = 'linear-gradient(90deg, #228B22, #32CD32)';
-                    banner.style.color = 'white';
-                    banner.innerHTML = '👑 主控制者';
-                    enableControls(true);
-                } else {
-                    banner.style.background = 'linear-gradient(90deg, #FF8C00, #FFA500)';
-                    banner.style.color = 'white';
-                    let html = '👁️ 觀看模式';
-                    if (data.can_takeover) {
-                        html += ' <button onclick="takeoverHost()" style="margin-left:10px;padding:3px 10px;font-size:12px;cursor:pointer;background:#FFD700;border:none;border-radius:5px;font-weight:bold;">🔓 接管</button>';
+                    console.log('[LEADERBOARD] No .prize-value span found, updating innerHTML directly');
+                    // Fallback: Replace the "抽獎中..." text directly
+                    const currentHTML = row.innerHTML;
+                    if (currentHTML.includes('抽獎中')) {
+                        const prizeHTML = data.won
+                            ? `<span style="color:#00FF00;float:right;font-weight:bold;">🎉 $${data.prize}</span>`
+                            : `<span style="color:gold;float:right;font-weight:bold;">$${data.prize}</span>`;
+                        row.innerHTML = currentHTML.replace(/<span[^>]*>🎰 抽獎中...<\/span>/, prizeHTML);
                     }
-                    banner.innerHTML = html;
-                    enableControls(false);
                 }
+            } else {
+                console.log('[LEADERBOARD] Row not found for player:', data.player_id, data.player_name);
             }
+        });
 
-            // Enable or disable control buttons
-            function enableControls(enabled) {
-                const controlButtons = document.querySelectorAll('.host-control-btn');
-                controlButtons.forEach(btn => {
-                    btn.disabled = !enabled;
-                    btn.style.opacity = enabled ? '1' : '0.5';
-                    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-                });
-            }
+        // Update leaderboard when prizes exhausted (auto-assigned)
+        socket.on('slot_prizes_exhausted', (data) => {
+            console.log('[LEADERBOARD] Prizes exhausted for:', data);
 
-            // Show takeover countdown
-            function showTakeoverCountdown(timeout) {
-                let countdown = document.getElementById('takeover-countdown');
-                if (!countdown) {
-                    countdown = document.createElement('div');
-                    countdown.id = 'takeover-countdown';
-                    countdown.style.cssText = 'position:fixed;top:50px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#FFD700;padding:20px 40px;border-radius:15px;font-size:20px;z-index:10001;text-align:center;';
-                    document.body.appendChild(countdown);
-                }
-
-                let remaining = timeout;
-                countdown.innerHTML = `⏳ 控制者已離線<br>可在 <span id="takeover-time">${remaining}</span> 秒後接管`;
-
-                const interval = setInterval(() => {
-                    remaining--;
-                    const timeEl = document.getElementById('takeover-time');
-                    if (timeEl) timeEl.innerText = remaining;
-
-                    if (remaining <= 0) {
-                        clearInterval(interval);
-                        countdown.innerHTML = '🔓 控制者已離線超過 30 秒<br><button onclick="takeoverHost()" style="margin-top:10px;padding:10px 30px;font-size:18px;cursor:pointer;background:#FFD700;border:none;border-radius:10px;font-weight:bold;">🔓 接管控制權</button>';
+            // Find and update the row the same way as slot_result_final
+            let row = document.getElementById(`leaderboard-row-${data.player_id}`);
+            if (!row && data.player_name) {
+                const entries = document.getElementById('live-leaderboard-entries');
+                if (entries) {
+                    const allRows = entries.querySelectorAll('div[id^="leaderboard-row-"]');
+                    for (const r of allRows) {
+                        if (r.textContent.includes(data.player_name)) {
+                            row = r;
+                            break;
+                        }
                     }
-                }, 1000);
-
-                countdown.dataset.intervalId = interval;
-            }
-
-            // Hide takeover countdown
-            function hideTakeoverCountdown() {
-                const countdown = document.getElementById('takeover-countdown');
-                if (countdown) {
-                    if (countdown.dataset.intervalId) {
-                        clearInterval(parseInt(countdown.dataset.intervalId));
-                    }
-                    countdown.remove();
                 }
             }
 
-            // Take over as controller
-            function takeoverHost() {
-                document.getElementById('takeover-modal').style.display = 'block';
-                hideTakeoverCountdown();
+            if (row) {
+                const currentHTML = row.innerHTML;
+                if (currentHTML.includes('抽獎中')) {
+                    const prizeHTML = `<span style="color:#aaa;float:right;font-weight:bold;">$${data.prize}</span>`;
+                    row.innerHTML = currentHTML.replace(/<span[^>]*>🎰 抽獎中...<\/span>/, prizeHTML);
+                }
+            }
+        });
+
+        // Update UI based on HOST control status
+        function updateHostControlUI(data) {
+            // Remove existing status banner if present
+            let banner = document.getElementById('host-control-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'host-control-banner';
+                // Position in top-left corner, small label that doesn't cover main content
+                banner.style.cssText = 'position:fixed;top:10px;left:10px;padding:8px 15px;font-size:14px;font-weight:bold;z-index:10000;border-radius:20px;box-shadow:0 2px 10px rgba(0,0,0,0.3);';
+                document.body.appendChild(banner);
             }
 
-            // Generate QR Code with fallback
-            const localUrl = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "") + "/play";
-            document.getElementById('join-url').innerText = localUrl;
+            if (data.is_controller) {
+                banner.style.background = 'linear-gradient(90deg, #228B22, #32CD32)';
+                banner.style.color = 'white';
+                banner.innerHTML = '👑 主控制者';
+                enableControls(true);
+            } else {
+                banner.style.background = 'linear-gradient(90deg, #FF8C00, #FFA500)';
+                banner.style.color = 'white';
+                let html = '👁️ 觀看模式';
+                if (data.can_takeover) {
+                    html += ' <button onclick="takeoverHost()" style="margin-left:10px;padding:3px 10px;font-size:12px;cursor:pointer;background:#FFD700;border:none;border-radius:5px;font-weight:bold;">🔓 接管</button>';
+                }
+                banner.innerHTML = html;
+                enableControls(false);
+            }
+        }
 
-            // Make URL clickable as fallback
-            document.getElementById('join-url').onclick = function () {
+        // Enable or disable control buttons
+        function enableControls(enabled) {
+            const controlButtons = document.querySelectorAll('.host-control-btn');
+            controlButtons.forEach(btn => {
+                btn.disabled = !enabled;
+                btn.style.opacity = enabled ? '1' : '0.5';
+                btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+            });
+        }
+
+        // Show takeover countdown
+        function showTakeoverCountdown(timeout) {
+            let countdown = document.getElementById('takeover-countdown');
+            if (!countdown) {
+                countdown = document.createElement('div');
+                countdown.id = 'takeover-countdown';
+                countdown.style.cssText = 'position:fixed;top:50px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#FFD700;padding:20px 40px;border-radius:15px;font-size:20px;z-index:10001;text-align:center;';
+                document.body.appendChild(countdown);
+            }
+
+            let remaining = timeout;
+            countdown.innerHTML = `⏳ 控制者已離線<br>可在 <span id="takeover-time">${remaining}</span> 秒後接管`;
+
+            const interval = setInterval(() => {
+                remaining--;
+                const timeEl = document.getElementById('takeover-time');
+                if (timeEl) timeEl.innerText = remaining;
+
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    countdown.innerHTML = '🔓 控制者已離線超過 30 秒<br><button onclick="takeoverHost()" style="margin-top:10px;padding:10px 30px;font-size:18px;cursor:pointer;background:#FFD700;border:none;border-radius:10px;font-weight:bold;">🔓 接管控制權</button>';
+                }
+            }, 1000);
+
+            countdown.dataset.intervalId = interval;
+        }
+
+        // Hide takeover countdown
+        function hideTakeoverCountdown() {
+            const countdown = document.getElementById('takeover-countdown');
+            if (countdown) {
+                if (countdown.dataset.intervalId) {
+                    clearInterval(parseInt(countdown.dataset.intervalId));
+                }
+                countdown.remove();
+            }
+        }
+
+        // Take over as controller
+        function takeoverHost() {
+            socket.emit('host_takeover');
+            hideTakeoverCountdown();
+        }
+
+        // Generate QR Code with fallback
+        const localUrl = window.location.protocol + "//" + window.location.hostname + (window.location.port ? ":" + window.location.port : "") + "/play";
+        document.getElementById('join-url').innerText = localUrl;
+
+        // Make URL clickable as fallback
+        document.getElementById('join-url').onclick = function () {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(localUrl);
                 alert('網址已複製！');
-            };
-            document.getElementById('join-url').style.cursor = 'pointer';
-            document.getElementById('join-url').title = '點擊複製網址';
-
-            try {
-                new QRCode(document.getElementById("qrcode-container"), {
-                    text: localUrl,
-                    width: 150,
-                    height: 150
-                });
-            } catch (e) {
-                console.error('QR Code failed:', e);
-                document.getElementById("qrcode-container").innerHTML = '<div style="padding:20px;background:#333;border-radius:10px;color:#FFD700;">QR Code 載入失敗<br>請使用以下網址</div>';
+            } else {
+                // Fallback for non-HTTPS
+                prompt('請手動複製網址:', localUrl);
             }
+        };
+        document.getElementById('join-url').style.cursor = 'pointer';
+        document.getElementById('join-url').title = '點擊複製網址';
 
-            // Update prize display when inputs change
-            function updatePrizeDisplay() {
-                const p1 = document.getElementById('prize1').value || 0;
-                const p2 = document.getElementById('prize2').value || 0;
-                const p3 = document.getElementById('prize3').value || 0;
-                document.getElementById('display-prize1').innerText = '$' + p1;
-                document.getElementById('display-prize2').innerText = '$' + p2;
-                document.getElementById('display-prize3').innerText = '$' + p3;
-            }
+        try {
+            new QRCode(document.getElementById("qrcode-container"), {
+                text: localUrl,
+                width: 150,
+                height: 150
+            });
+        } catch (e) {
+            console.error('QR Code failed:', e);
+            document.getElementById("qrcode-container").innerHTML = '<div style="padding:20px;background:#333;border-radius:10px;color:#FFD700;">QR Code 載入失敗<br>請使用以下網址</div>';
+        }
 
-            // Custom track path using waypoints - follows actual dirt track in background image
-            // The track is stadium-shaped (not a perfect ellipse): straight sides + curved ends
-            // Path: START (bottom-right) → right → top → left → FINISH (bottom-left)
+        // Update prize display when inputs change
+        function updatePrizeDisplay() {
+            const p1 = document.getElementById('prize1').value || 0;
+            const p2 = document.getElementById('prize2').value || 0;
+            const p3 = document.getElementById('prize3').value || 0;
+            document.getElementById('display-prize1').innerText = '$' + p1;
+            document.getElementById('display-prize2').innerText = '$' + p2;
+            document.getElementById('display-prize3').innerText = '$' + p3;
+        }
 
-            // Define waypoints along the actual track path
-            // Track shape: STADIUM (two straight sections + two semicircular ends)
+        // Custom track path using waypoints - follows actual dirt track in background image
+        // The track is stadium-shaped (not a perfect ellipse): straight sides + curved ends
+        // Path: START (bottom-right) → right → top → left → FINISH (bottom-left)
 
-            // 橋前駅版 waypoints (original)
-            const hashimaeWaypoints = [
-                { x: 63, y: 52 },   // 0: START
-                { x: 82, y: 44 },   // 1: right curve - lower part
-                { x: 90, y: 32 },   // 2: right curve - middle (rightmost)
-                { x: 82, y: 20 },   // 3: right curve - upper part
-                { x: 68, y: 12 },   // 4: top straight - right end
-                { x: 32, y: 12 },   // 5: top straight - left end
-                { x: 14, y: 20 },   // 6: left curve - upper part
-                { x: 8, y: 32 },    // 7: left curve - middle (leftmost)
-                { x: 14, y: 44 },   // 8: left curve - lower part
-                { x: 28, y: 52 },   // 9: FINISH
-            ];
+        // Define waypoints along the actual track path
+        // Track shape: STADIUM (two straight sections + two semicircular ends)
 
-            // 明昌五金行版 waypoints (Defined by user via Path Editor - Post-Crop)
-            const mingchangWaypoints = [
-                { x: 62, y: 68 },   // 0
-                { x: 84, y: 62 },   // 1
-                { x: 87, y: 39 },   // 2
-                { x: 76, y: 20 },   // 3
-                { x: 66, y: 16 },   // 4
-                { x: 30, y: 16 },   // 5
-                { x: 17, y: 25 },   // 6
-                { x: 11, y: 41 },   // 7
-                { x: 14, y: 58 },   // 8
-                { x: 26, y: 67 },   // 9
-            ];
+        // 橋前駅版 waypoints (original)
+        const hashimaeWaypoints = [
+            { x: 63, y: 52 },   // 0: START
+            { x: 82, y: 44 },   // 1: right curve - lower part
+            { x: 90, y: 32 },   // 2: right curve - middle (rightmost)
+            { x: 82, y: 20 },   // 3: right curve - upper part
+            { x: 68, y: 12 },   // 4: top straight - right end
+            { x: 32, y: 12 },   // 5: top straight - left end
+            { x: 14, y: 20 },   // 6: left curve - upper part
+            { x: 8, y: 32 },    // 7: left curve - middle (leftmost)
+            { x: 14, y: 44 },   // 8: left curve - lower part
+            { x: 28, y: 52 },   // 9: FINISH
+        ];
 
-            // Get current theme's waypoints
-            function getTrackWaypoints() {
-                return currentTheme === 'mingchang' ? mingchangWaypoints : hashimaeWaypoints;
-            }
+        // 明昌五金行版 waypoints (Defined by user via Path Editor - Post-Crop)
+        const mingchangWaypoints = [
+            { x: 62, y: 68 },   // 0
+            { x: 84, y: 62 },   // 1
+            { x: 87, y: 39 },   // 2
+            { x: 76, y: 20 },   // 3
+            { x: 66, y: 16 },   // 4
+            { x: 30, y: 16 },   // 5
+            { x: 17, y: 25 },   // 6
+            { x: 11, y: 41 },   // 7
+            { x: 14, y: 58 },   // 8
+            { x: 26, y: 67 },   // 9
+        ];
 
-            // Legacy reference for compatibility
-            const trackWaypoints = hashimaeWaypoints;
+        // Get current theme's waypoints
+        function getTrackWaypoints() {
+            return currentTheme === 'mingchang' ? mingchangWaypoints : hashimaeWaypoints;
+        }
 
-            // DEBUG: Show track path visualization
-            function showDebugPath() { console.log('Debug path disabled'); }
-            function showDebugPath_DISABLED(trackId = 'race-oval-track') {
-                const track = document.getElementById(trackId);
-                if (!track) return;
+        // Legacy reference for compatibility
+        const trackWaypoints = hashimaeWaypoints;
 
-                // Get theme-specific waypoints
-                const waypoints = getTrackWaypoints();
+        // DEBUG: Show track path visualization
+        function showDebugPath() { console.log('Debug path disabled'); }
+        function showDebugPath_DISABLED(trackId = 'race-oval-track') {
+            const track = document.getElementById(trackId);
+            if (!track) return;
 
-                // Remove existing debug elements
-                track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
+            // Get theme-specific waypoints
+            const waypoints = getTrackWaypoints();
 
-                // Draw lines between waypoints
-                for (let i = 0; i < waypoints.length - 1; i++) {
-                    const p1 = waypoints[i];
-                    const p2 = waypoints[i + 1];
+            // Remove existing debug elements
+            track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
 
-                    const line = document.createElement('div');
-                    line.className = 'debug-line';
+            // Draw lines between waypoints
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                const p1 = waypoints[i];
+                const p2 = waypoints[i + 1];
 
-                    const dx = p2.x - p1.x;
-                    const dy = p2.y - p1.y;
-                    const length = Math.sqrt(dx * dx + dy * dy);
-                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                const line = document.createElement('div');
+                line.className = 'debug-line';
 
-                    line.style.cssText = `
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                line.style.cssText = `
                     position: absolute;
                     left: ${p1.x}%;
                     top: ${p1.y}%;
@@ -1315,15 +1372,15 @@
                     transform: rotate(${angle}deg);
                     z-index: 1000;
                 `;
-                    track.appendChild(line);
-                }
+                track.appendChild(line);
+            }
 
-                // Draw waypoint circles with numbers
-                trackWaypoints.forEach((p, i) => {
-                    const point = document.createElement('div');
-                    point.className = 'debug-point';
-                    point.innerText = i;
-                    point.style.cssText = `
+            // Draw waypoint circles with numbers
+            trackWaypoints.forEach((p, i) => {
+                const point = document.createElement('div');
+                point.className = 'debug-point';
+                point.innerText = i;
+                point.style.cssText = `
                     position: absolute;
                     left: ${p.x}%;
                     top: ${p.y}%;
@@ -1341,1269 +1398,1018 @@
                     color: #000;
                     z-index: 1001;
                 `;
-                    track.appendChild(point);
-                });
+                track.appendChild(point);
+            });
 
-                console.log('Debug path shown. Green=START, Red=FINISH');
-            }
+            console.log('Debug path shown. Green=START, Red=FINISH');
+        }
 
-            function hideDebugPath(trackId = 'race-oval-track') {
-                const track = document.getElementById(trackId);
-                if (track) {
-                    track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
-                }
+        function hideDebugPath(trackId = 'race-oval-track') {
+            const track = document.getElementById(trackId);
+            if (track) {
+                track.querySelectorAll('.debug-point, .debug-line').forEach(el => el.remove());
             }
+        }
+
+        // Catmull-Rom spline interpolation for smooth curves
+        function catmullRom(p0, p1, p2, p3, t) {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        }
+
+        function getOvalPosition(index, total, progress = 0) {
+            // Clamp progress to 0-100
+            progress = Math.max(0, Math.min(100, progress));
+
+            // Get theme-specific waypoints
+            const waypoints = getTrackWaypoints();
+
+            // Calculate which segment of the path we're on
+            const numSegments = waypoints.length - 1;
+            const progressPerSegment = 100 / numSegments;
+
+            // Find current segment index
+            const segmentIndex = Math.min(
+                Math.floor(progress / progressPerSegment),
+                numSegments - 1
+            );
+
+            // Calculate progress within current segment (0 to 1)
+            const t = (progress - segmentIndex * progressPerSegment) / progressPerSegment;
+
+            // Get 4 points for Catmull-Rom interpolation
+            // Use clamping for edge cases (no wrapping since it's not a closed loop)
+            const p0 = waypoints[Math.max(0, segmentIndex - 1)];
+            const p1 = waypoints[segmentIndex];
+            const p2 = waypoints[segmentIndex + 1];
+            const p3 = waypoints[Math.min(waypoints.length - 1, segmentIndex + 2)];
 
             // Catmull-Rom spline interpolation for smooth curves
-            function catmullRom(p0, p1, p2, p3, t) {
-                const t2 = t * t;
-                const t3 = t2 * t;
-                return 0.5 * (
-                    (2 * p1) +
-                    (-p0 + p2) * t +
-                    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-                    (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-                );
+            let x = catmullRom(p0.x, p1.x, p2.x, p3.x, t);
+            let y = catmullRom(p0.y, p1.y, p2.y, p3.y, t);
+
+            // Spread players slightly at start position for visibility
+            if (total > 1 && progress < 5) {
+                const spreadOffset = 3;
+                const playerOffset = (index / (total - 1) - 0.5) * spreadOffset;
+                y += playerOffset;
             }
 
-            function getOvalPosition(index, total, progress = 0) {
-                // Clamp progress to 0-100
-                progress = Math.max(0, Math.min(100, progress));
+            return { x, y };
+        }
 
-                // Get theme-specific waypoints
-                const waypoints = getTrackWaypoints();
+        // Calculate horse facing direction based on track position
+        function getHorseDirection(progress) {
+            // Returns: 1 = facing right, -1 = facing left
+            // Track: START(63,52) → right curve up → top → left curve down → FINISH(28,52)
+            // 
+            // 0-22%: Moving right/up (right curve) → facing right
+            // 22-78%: Moving left (top + left curve) → facing left  
+            // 78-100%: Moving right/down (finish approach) → facing right
 
-                // Calculate which segment of the path we're on
-                const numSegments = waypoints.length - 1;
-                const progressPerSegment = 100 / numSegments;
+            if (progress < 22) return 1;   // START + right curve: facing right
+            if (progress < 78) return -1;  // Top + left curve: facing left
+            return 1;  // Final stretch toward finish: facing right
+        }
 
-                // Find current segment index
-                const segmentIndex = Math.min(
-                    Math.floor(progress / progressPerSegment),
-                    numSegments - 1
-                );
+        // Update players on oval track
+        let currentLeaderId = null;
 
-                // Calculate progress within current segment (0 to 1)
-                const t = (progress - segmentIndex * progressPerSegment) / progressPerSegment;
+        function updateOvalTrack(playerList, trackId = 'oval-track') {
+            const track = document.getElementById(trackId);
+            if (!track) return;
 
-                // Get 4 points for Catmull-Rom interpolation
-                // Use clamping for edge cases (no wrapping since it's not a closed loop)
-                const p0 = waypoints[Math.max(0, segmentIndex - 1)];
-                const p1 = waypoints[segmentIndex];
-                const p2 = waypoints[segmentIndex + 1];
-                const p3 = waypoints[Math.min(waypoints.length - 1, segmentIndex + 2)];
+            // Clear existing players
+            track.querySelectorAll('.track-player').forEach(el => el.remove());
 
-                // Catmull-Rom spline interpolation for smooth curves
-                let x = catmullRom(p0.x, p1.x, p2.x, p3.x, t);
-                let y = catmullRom(p0.y, p1.y, p2.y, p3.y, t);
+            // Track leader change logic
+            let maxProgress = -1;
+            let newLeaderId = null;
 
-                // Spread players slightly at start position for visibility
-                if (total > 1 && progress < 5) {
-                    const spreadOffset = 3;
-                    const playerOffset = (index / (total - 1) - 0.5) * spreadOffset;
-                    y += playerOffset;
+            // First pass: Determine the actual leader
+            playerList.forEach(p => {
+                const progress = p.progress || 0;
+                if (progress > maxProgress && progress > 0 && progress < 100) {
+                    maxProgress = progress;
+                    newLeaderId = p.id;
                 }
-
-                return { x, y };
-            }
-
-            // Calculate horse facing direction based on track position
-            function getHorseDirection(progress) {
-                // Returns: 1 = facing right, -1 = facing left
-                // Track: START(63,52) → right curve up → top → left curve down → FINISH(28,52)
-                // 
-                // 0-22%: Moving right/up (right curve) → facing right
-                // 22-78%: Moving left (top + left curve) → facing left  
-                // 78-100%: Moving right/down (finish approach) → facing right
-
-                if (progress < 22) return 1;   // START + right curve: facing right
-                if (progress < 78) return -1;  // Top + left curve: facing left
-                return 1;  // Final stretch toward finish: facing right
-            }
-
-            // Update players on oval track
-            let currentLeaderId = null;
-
-            function updateOvalTrack(playerList, trackId = 'oval-track') {
-                const track = document.getElementById(trackId);
-                if (!track) return;
-
-                // Clear existing players
-                track.querySelectorAll('.track-player').forEach(el => el.remove());
-
-                // Track leader change logic
-                let maxProgress = -1;
-                let newLeaderId = null;
-
-                // First pass: Determine the actual leader
-                playerList.forEach(p => {
-                    const progress = p.progress || 0;
-                    if (progress > maxProgress && progress > 0 && progress < 100) {
-                        maxProgress = progress;
-                        newLeaderId = p.id;
-                    }
-                });
-
-                playerList.forEach((p, index) => {
-                    const progress = p.progress || 0;
-                    // Leader calculation moved to pre-pass
-
-                    const pos = getOvalPosition(index, playerList.length, progress);
-                    const direction = getHorseDirection(progress);
-
-                    const playerDiv = document.createElement('div');
-                    playerDiv.className = 'track-player';
-                    playerDiv.id = 'track-' + p.id;
-                    playerDiv.style.left = pos.x + '%';
-                    playerDiv.style.top = pos.y + '%';
-
-                    // Mark leader with a crown or effect if needed
-                    if (p.id === newLeaderId && trackId === 'race-oval-track' && playerList.length > 1) {
-                        playerDiv.classList.add('is-leader');
-                    }
-
-                    const img = document.createElement('img');
-                    img.src = getAvatarPath(p.avatar_id);
-                    img.onerror = function () { this.src = '/static/images/horse1.png'; };
-                    // Flip horse based on direction (scaleX)
-                    img.style.transform = 'scaleX(' + direction + ')';
-                    // Set CSS variable for animations to know the direction
-                    playerDiv.style.setProperty('--horse-dir', direction);
-
-                    const nameTag = document.createElement('div');
-                    nameTag.className = 'track-player-name';
-                    nameTag.innerText = p.name;
-
-                    // Add running dust effect occasionally for leader
-                    if (p.id === newLeaderId && trackId === 'race-oval-track' && Math.random() < 0.1) {
-                        createDustEffect(parseFloat(pos.x), parseFloat(pos.y), '#FFD700');
-                    }
-
-                    playerDiv.appendChild(img);
-                    playerDiv.appendChild(nameTag);
-                    track.appendChild(playerDiv);
-                });
-
-                // Trigger cheer sound if leader changed
-                if (trackId === 'race-oval-track' && newLeaderId && newLeaderId !== currentLeaderId) {
-                    // Only cheer if significant progress (>5%) and more than 1 player
-                    if (maxProgress > 5 && playerList.length > 1) {
-                        console.log(`Leader changed to ${newLeaderId}, cheering!`);
-                        playCheerSound();
-
-                        // Show "New Leader!" text effect
-                        const leader = playerList.find(p => p.id === newLeaderId);
-                        if (leader) {
-                            // Ideally show a temporary text
-                        }
-                    }
-                    currentLeaderId = newLeaderId;
-                }
-            }
-
-
-            // Socket Events
-            socket.on('update_player_list', (playerData) => {
-                players = playerData;
-                document.getElementById('player-count').innerText = players.length;
-
-                // Update oval track preview
-                updateOvalTrack(players, 'oval-track');
             });
 
-            socket.on('race_started', (data) => {
-                totalPrize = data.total_prize;
-                document.getElementById('setup-screen').style.display = 'none';
-                document.getElementById('race-screen').style.display = 'block';
-                document.getElementById('results-screen').style.display = 'none';
+            playerList.forEach((p, index) => {
+                const progress = p.progress || 0;
+                // Leader calculation moved to pre-pass
 
-                // Copy players to race track
-                updateOvalTrack(players, 'race-oval-track');
+                const pos = getOvalPosition(index, playerList.length, progress);
+                const direction = getHorseDirection(progress);
 
-                // 顯示大型倒數數字
-                showCountdown();
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'track-player';
+                playerDiv.id = 'track-' + p.id;
+                playerDiv.style.left = pos.x + '%';
+                playerDiv.style.top = pos.y + '%';
 
-                // 播放開始音效並切換到賽跑音樂
-                playStartSound();
-                setTimeout(() => startRacingMusic(), 3500);
+                // Mark leader with a crown or effect if needed
+                if (p.id === newLeaderId && trackId === 'race-oval-track' && playerList.length > 1) {
+                    playerDiv.classList.add('is-leader');
+                }
+
+                const img = document.createElement('img');
+                img.src = getAvatarPath(p.avatar_id);
+                img.onerror = function () { this.src = '/static/images/horse1.png'; };
+                // Flip horse based on direction (scaleX)
+                img.style.transform = 'scaleX(' + direction + ')';
+                // Set CSS variable for animations to know the direction
+                playerDiv.style.setProperty('--horse-dir', direction);
+
+                const nameTag = document.createElement('div');
+                nameTag.className = 'track-player-name';
+                nameTag.innerText = p.name;
+
+                // Add running dust effect occasionally for leader
+                if (p.id === newLeaderId && trackId === 'race-oval-track' && Math.random() < 0.1) {
+                    createDustEffect(parseFloat(pos.x), parseFloat(pos.y), '#FFD700');
+                }
+
+                playerDiv.appendChild(img);
+                playerDiv.appendChild(nameTag);
+                track.appendChild(playerDiv);
             });
 
-            // Quiz questions are about to start - show big announcement
-            socket.on('quiz_starting', () => {
-                console.log('Quiz starting!');
+            // Trigger cheer sound if leader changed
+            if (trackId === 'race-oval-track' && newLeaderId && newLeaderId !== currentLeaderId) {
+                // Only cheer if significant progress (>5%) and more than 1 player
+                if (maxProgress > 5 && playerList.length > 1) {
+                    console.log(`Leader changed to ${newLeaderId}, cheering!`);
+                    playCheerSound();
 
-                // Create big announcement overlay
-                const announcement = document.createElement('div');
-                announcement.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;pointer-events:none;';
-                announcement.innerHTML = `
+                    // Show "New Leader!" text effect
+                    const leader = playerList.find(p => p.id === newLeaderId);
+                    if (leader) {
+                        // Ideally show a temporary text
+                    }
+                }
+                currentLeaderId = newLeaderId;
+            }
+        }
+
+
+        // Socket Events
+        // Socket events delegated to HostLogic
+
+
+        // Quiz questions are about to start - show big announcement
+        function showQuizAnnouncement() {
+            console.log('Quiz starting!');
+
+            // Create big announcement overlay
+            const announcement = document.createElement('div');
+            announcement.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;pointer-events:none;';
+            announcement.innerHTML = `
                 <div style="font-size:80px;margin-bottom:20px;animation:bounce 0.5s ease infinite;">❓</div>
                 <div style="font-size:48px;font-weight:bold;color:#FFD700;text-shadow:0 0 20px #ff8800,0 0 40px #ff0;">問答時間開始！</div>
                 <div style="font-size:20px;color:white;margin-top:10px;text-shadow:0 0 10px #000;">請注意馬兒頭上的 ❓ 就要開始作答</div>
                 <div style="font-size:24px;color:white;margin-top:15px;text-shadow:0 0 10px #000;">答對加速 💨 答錯凍結 ❄️</div>
             `;
-                document.body.appendChild(announcement);
+            document.body.appendChild(announcement);
 
-                // Animate in
+            // Animate in
+            announcement.animate([
+                { opacity: 0, transform: 'translate(-50%,-50%) scale(0.5)' },
+                { opacity: 1, transform: 'translate(-50%,-50%) scale(1.1)' },
+                { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' }
+            ], { duration: 500, easing: 'ease-out' });
+
+            // Remove after 3 seconds
+            setTimeout(() => {
                 announcement.animate([
-                    { opacity: 0, transform: 'translate(-50%,-50%) scale(0.5)' },
-                    { opacity: 1, transform: 'translate(-50%,-50%) scale(1.1)' },
-                    { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' }
-                ], { duration: 500, easing: 'ease-out' });
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ], { duration: 500 });
+                setTimeout(() => announcement.remove(), 500);
+            }, 3000);
 
-                // Remove after 3 seconds
-                setTimeout(() => {
-                    announcement.animate([
-                        { opacity: 1 },
+            // Audio handled by HostLogic calling AudioManager
+        }
+
+        // 大型倒數顯示
+        function showCountdown() {
+            const countdownEl = document.createElement('div');
+            countdownEl.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:200px;font-weight:bold;color:#FFD700;text-shadow:0 0 30px #ff0,0 0 60px #ff8800;z-index:9999;text-align:center;pointer-events:none;';
+            document.body.appendChild(countdownEl);
+
+            const numbers = ['3', '2', '1', '🏇 GO!'];
+            let i = 0;
+
+            function showNext() {
+                if (i < numbers.length) {
+                    countdownEl.innerText = numbers[i];
+                    countdownEl.style.transform = 'translate(-50%,-50%) scale(0.5)';
+                    countdownEl.style.opacity = '1';
+                    countdownEl.animate([
+                        { transform: 'translate(-50%,-50%) scale(0.5)', opacity: 1 },
+                        { transform: 'translate(-50%,-50%) scale(1.2)', opacity: 1 },
+                        { transform: 'translate(-50%,-50%) scale(1)', opacity: 0.8 }
+                    ], { duration: 800, easing: 'ease-out' });
+                    i++;
+                    setTimeout(showNext, 1000);
+                } else {
+                    countdownEl.animate([
+                        { opacity: 0.8 },
                         { opacity: 0 }
-                    ], { duration: 500 });
-                    setTimeout(() => announcement.remove(), 500);
-                }, 3000);
-
-                // Play a notification sound
-                playTone(880, 'sine', 0.15, 0.15);
-                setTimeout(() => playTone(1174.66, 'sine', 0.15, 0.15), 150);
-            });
-
-            // 大型倒數顯示
-            function showCountdown() {
-                const countdownEl = document.createElement('div');
-                countdownEl.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:200px;font-weight:bold;color:#FFD700;text-shadow:0 0 30px #ff0,0 0 60px #ff8800;z-index:9999;text-align:center;pointer-events:none;';
-                document.body.appendChild(countdownEl);
-
-                const numbers = ['3', '2', '1', '🏇 GO!'];
-                let i = 0;
-
-                function showNext() {
-                    if (i < numbers.length) {
-                        countdownEl.innerText = numbers[i];
-                        countdownEl.style.transform = 'translate(-50%,-50%) scale(0.5)';
-                        countdownEl.style.opacity = '1';
-                        countdownEl.animate([
-                            { transform: 'translate(-50%,-50%) scale(0.5)', opacity: 1 },
-                            { transform: 'translate(-50%,-50%) scale(1.2)', opacity: 1 },
-                            { transform: 'translate(-50%,-50%) scale(1)', opacity: 0.8 }
-                        ], { duration: 800, easing: 'ease-out' });
-                        i++;
-                        setTimeout(showNext, 1000);
-                    } else {
-                        countdownEl.animate([
-                            { opacity: 0.8 },
-                            { opacity: 0 }
-                        ], { duration: 300 });
-                        setTimeout(() => countdownEl.remove(), 300);
-                    }
+                    ], { duration: 300 });
+                    setTimeout(() => countdownEl.remove(), 300);
                 }
-                showNext();
             }
+            showNext();
+        }
 
-            socket.on('player_update', (data) => {
-                // Find player and update progress
-                const player = players.find(p => p.id === data.id);
-                if (player) {
-                    player.progress = data.progress;
-                }
+        // Player update logic moved to HostLogic
 
-                // Check for leader change and play cheer sound
-                // Only play when leader TRULY changes (not on first initialization)
-                if (players.length > 1) {
-                    const sortedPlayers = [...players].sort((a, b) => (b.progress || 0) - (a.progress || 0));
-                    const newLeader = sortedPlayers[0];
-                    if (newLeader && (newLeader.progress || 0) > 0) {
-                        if (!leaderInitialized) {
-                            // First time setting leader - no sound
-                            currentLeader = newLeader.id;
-                            leaderInitialized = true;
-                        } else if (newLeader.id !== currentLeader) {
-                            // Real leader change - play cheer!
-                            currentLeader = newLeader.id;
-                            playCheerSound();
-                        }
-                    }
-                }
 
-                // Update position on race oval track (find in the VISIBLE race track)
-                const raceTrack = document.getElementById('race-oval-track');
-                const trackPlayer = raceTrack ? raceTrack.querySelector('#track-' + data.id) : null;
-                if (trackPlayer) {
-                    const index = players.findIndex(p => p.id === data.id);
-                    const pos = getOvalPosition(index, players.length, data.progress);
-                    trackPlayer.style.left = pos.x + '%';
-                    trackPlayer.style.top = pos.y + '%';
+        // Track disconnected players
+        let disconnectedPlayers = new Set();
 
-                    // 動態更新馬頭方向
-                    const direction = getHorseDirection(data.progress);
-                    const horseImg = trackPlayer.querySelector('img');
-                    if (horseImg) {
-                        horseImg.style.transform = 'scaleX(' + direction + ')';
-                    }
-                }
-            });
+        // Player disconnected - show offline indicator
+        function showPlayerDisconnect(data) {
+            console.log('Player disconnected:', data.player_name);
+            disconnectedPlayers.add(data.player_id);
 
-            // Track disconnected players
-            let disconnectedPlayers = new Set();
+            // Find player on track and add offline indicator
+            const trackPlayer = document.querySelector('#track-' + data.player_id);
+            if (trackPlayer && !trackPlayer.querySelector('.offline-indicator')) {
+                const indicator = document.createElement('div');
+                indicator.className = 'offline-indicator';
+                indicator.innerHTML = '📡 離線中';
+                indicator.style.cssText = 'position:absolute;top:-30px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.8);color:white;padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap;z-index:100;animation:blink 1s infinite;';
+                trackPlayer.appendChild(indicator);
 
-            // Player disconnected - show offline indicator
-            socket.on('player_disconnected', (data) => {
-                console.log('Player disconnected:', data.player_name);
-                disconnectedPlayers.add(data.player_id);
-
-                // Find player on track and add offline indicator
-                const trackPlayer = document.querySelector('#track-' + data.player_id);
-                if (trackPlayer && !trackPlayer.querySelector('.offline-indicator')) {
-                    const indicator = document.createElement('div');
-                    indicator.className = 'offline-indicator';
-                    indicator.innerHTML = '📡 離線中';
-                    indicator.style.cssText = 'position:absolute;top:-30px;left:50%;transform:translateX(-50%);background:rgba(255,0,0,0.8);color:white;padding:2px 8px;border-radius:10px;font-size:12px;white-space:nowrap;z-index:100;animation:blink 1s infinite;';
-                    trackPlayer.appendChild(indicator);
-
-                    // Also grey out the horse
-                    const horseImg = trackPlayer.querySelector('img');
-                    if (horseImg) {
-                        horseImg.style.filter = 'grayscale(100%)';
-                        horseImg.style.opacity = '0.6';
-                    }
-                }
-
-                // Update player list display if in waiting screen
-                updatePlayerListDisplay();
-            });
-
-            // Player reconnected - remove offline indicator
-            socket.on('player_reconnected', (data) => {
-                console.log('Player reconnected:', data.new_id);
-                // Remove old ID and don't add new one (they're back online)
-                disconnectedPlayers.delete(data.old_id);
-
-                // Update player ID reference
-                const oldPlayer = players.find(p => p.id === data.old_id);
-                if (oldPlayer) {
-                    oldPlayer.id = data.new_id;
-                }
-
-                // Remove offline indicator from track
-                const trackPlayer = document.querySelector('#track-' + data.old_id);
-                if (trackPlayer) {
-                    trackPlayer.id = 'track-' + data.new_id;
-                    const indicator = trackPlayer.querySelector('.offline-indicator');
-                    if (indicator) indicator.remove();
-
-                    // Restore horse appearance
-                    const horseImg = trackPlayer.querySelector('img');
-                    if (horseImg) {
-                        horseImg.style.filter = '';
-                        horseImg.style.opacity = '1';
-                    }
-                }
-
-                updatePlayerListDisplay();
-            });
-
-            // Helper to update player list with offline status
-            function updatePlayerListDisplay() {
-                // This updates the waiting screen player list if visible
-                const setupScreen = document.getElementById('setup-screen');
-                if (setupScreen && setupScreen.style.display !== 'none') {
-                    // Re-render oval track to show offline status
-                    updateOvalTrack(players, 'oval-track');
+                // Also grey out the horse
+                const horseImg = trackPlayer.querySelector('img');
+                if (horseImg) {
+                    horseImg.style.filter = 'grayscale(100%)';
+                    horseImg.style.opacity = '0.6';
                 }
             }
 
-            // Progress synchronization from server (every 5 seconds)
-            socket.on('progress_sync', (data) => {
-                console.log('Progress sync:', data);
+            // Update player list display if in waiting screen
+            updatePlayerListDisplay();
+        }
 
-                // Update remaining time display
-                updateRaceTimer(data.remaining);
+        // Player reconnected - remove offline indicator
+        function showPlayerReconnect(data) {
+            console.log('Player reconnected:', data.new_id);
+            // Remove old ID and don't add new one (they're back online)
+            disconnectedPlayers.delete(data.old_id);
 
-                // Sync all player progress
-                data.players.forEach(p => {
-                    const player = players.find(pl => pl.id === p.id);
-                    if (player) {
-                        player.progress = p.progress;
-                        player.finished = p.finished;
-                    }
-                });
+            // Update player ID reference
+            const oldPlayer = players.find(p => p.id === data.old_id);
+            if (oldPlayer) {
+                oldPlayer.id = data.new_id;
+            }
 
-                // Update track positions
-                updateOvalTrack(players, 'race-oval-track');
-            });
+            // Remove offline indicator from track
+            const trackPlayer = document.querySelector('#track-' + data.old_id);
+            if (trackPlayer) {
+                trackPlayer.id = 'track-' + data.new_id;
+                const indicator = trackPlayer.querySelector('.offline-indicator');
+                if (indicator) indicator.remove();
 
-            // Race auto-end notification
-            socket.on('race_auto_end', (data) => {
-                console.log('Race auto-end:', data);
+                // Restore horse appearance
+                const horseImg = trackPlayer.querySelector('img');
+                if (horseImg) {
+                    horseImg.style.filter = '';
+                    horseImg.style.opacity = '1';
+                }
+            }
 
-                const announcement = document.createElement('div');
-                announcement.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;background:rgba(0,0,0,0.9);padding:30px 50px;border-radius:20px;border:3px solid gold;';
+            updatePlayerListDisplay();
+        }
 
-                if (data.reason === 'timeout') {
-                    announcement.innerHTML = `
+        // Helper to update player list with offline status
+        function updatePlayerListDisplay() {
+            // This updates the waiting screen player list if visible
+            const setupScreen = document.getElementById('setup-screen');
+            if (setupScreen && setupScreen.style.display !== 'none') {
+                // Re-render oval track to show offline status
+                updateOvalTrack(players, 'oval-track');
+            }
+        }
+
+        // Progress synchronization from server (every 5 seconds)
+        // Progress sync moved to HostLogic
+
+
+        // Race auto-end notification
+        function showRaceAutoEnd(data) {
+            console.log('Race auto-end:', data);
+
+            const announcement = document.createElement('div');
+            announcement.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;background:rgba(0,0,0,0.9);padding:30px 50px;border-radius:20px;border:3px solid gold;';
+
+            if (data.reason === 'timeout') {
+                announcement.innerHTML = `
                     <div style="font-size:60px;margin-bottom:15px;">⏱️</div>
                     <div style="font-size:32px;color:#FFD700;font-weight:bold;">比賽時間到！</div>
                     <div style="font-size:20px;color:white;margin-top:10px;">10 分鐘已過，正在計算結果...</div>
                 `;
-                } else {
-                    announcement.innerHTML = `
+            } else {
+                announcement.innerHTML = `
                     <div style="font-size:60px;margin-bottom:15px;">🏁</div>
                     <div style="font-size:32px;color:#FFD700;font-weight:bold;">全員完成！</div>
                     <div style="font-size:20px;color:white;margin-top:10px;">正在計算結果...</div>
                 `;
+            }
+            document.body.appendChild(announcement);
+
+            // Remove after results come
+            setTimeout(() => announcement.remove(), 5000);
+        }
+
+        // Update race timer display
+        function updateRaceTimer(remaining) {
+            let timerEl = document.getElementById('race-timer');
+            if (!timerEl) {
+                timerEl = document.createElement('div');
+                timerEl.id = 'race-timer';
+                timerEl.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#FFD700;padding:10px 20px;border-radius:10px;font-size:24px;font-weight:bold;z-index:1000;';
+                document.body.appendChild(timerEl);
+            }
+
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            timerEl.innerText = `⏱️ ${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            // Change color when less than 1 minute
+            if (remaining < 60) {
+                timerEl.style.color = '#FF4444';
+            } else {
+                timerEl.style.color = '#FFD700';
+            }
+        }
+
+        // Player finished - show finish animation and rank
+        function showPlayerFinishedEffect(data) {
+            console.log('Player finished:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            if (horseEl) {
+                // Add golden glow animation
+                horseEl.style.filter = 'drop-shadow(0 0 10px gold) drop-shadow(0 0 20px yellow)';
+                horseEl.style.transform = 'scale(1.2)';
+
+                // Add rank badge
+                let rankBadge = horseEl.querySelector('.rank-badge');
+                if (!rankBadge) {
+                    rankBadge = document.createElement('div');
+                    rankBadge.className = 'rank-badge';
+                    rankBadge.style.cssText = 'position:absolute;top:-25px;left:50%;transform:translateX(-50%);font-size:20px;font-weight:bold;color:gold;text-shadow:0 0 5px #000;z-index:100;';
+                    horseEl.appendChild(rankBadge);
                 }
-                document.body.appendChild(announcement);
 
-                // Remove after results come
-                setTimeout(() => announcement.remove(), 5000);
-            });
+                // Show rank with medal emoji
+                const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+                rankBadge.innerText = medals[data.rank - 1] || `#${data.rank}`;
 
-            // Update race timer display
-            function updateRaceTimer(remaining) {
-                let timerEl = document.getElementById('race-timer');
-                if (!timerEl) {
-                    timerEl = document.createElement('div');
-                    timerEl.id = 'race-timer';
-                    timerEl.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.7);color:#FFD700;padding:10px 20px;border-radius:10px;font-size:24px;font-weight:bold;z-index:1000;';
-                    document.body.appendChild(timerEl);
-                }
+                // Celebration animation on horse
+                horseEl.animate([
+                    { transform: 'scale(1.2) rotate(-5deg)' },
+                    { transform: 'scale(1.3) rotate(5deg)' },
+                    { transform: 'scale(1.2) rotate(-5deg)' },
+                    { transform: 'scale(1.2) rotate(0deg)' }
+                ], { duration: 500, iterations: 3 });
+            }
 
-                const minutes = Math.floor(remaining / 60);
-                const seconds = remaining % 60;
-                timerEl.innerText = `⏱️ ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            // Show rank announcement
+            const announcement = document.createElement('div');
+            announcement.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);font-size:36px;font-weight:bold;color:#FFD700;text-shadow:0 0 15px gold, 0 0 30px orange;z-index:2000;text-align:center;pointer-events:none;';
+            const medals = ['🥇', '🥈', '🥉'];
+            const medal = medals[data.rank - 1] || `第${data.rank}名`;
+            announcement.innerHTML = `${medal} ${data.player_name} 到達終點!`;
+            document.body.appendChild(announcement);
 
-                // Change color when less than 1 minute
-                if (remaining < 60) {
-                    timerEl.style.color = '#FF4444';
+            announcement.animate([
+                { opacity: 0, transform: 'translateX(-50%) scale(0.5)' },
+                { opacity: 1, transform: 'translateX(-50%) scale(1.2)' },
+                { opacity: 1, transform: 'translateX(-50%) scale(1)' }
+            ], { duration: 500, easing: 'ease-out' });
+
+            setTimeout(() => {
+                announcement.animate([
+                    { opacity: 1 },
+                    { opacity: 0 }
+                ], { duration: 500 });
+                setTimeout(() => announcement.remove(), 500);
+            }, 3000);
+
+            // Audio handled by HostLogic
+        }
+
+        function updateLiveLeaderboard(data) {
+            // Update live leaderboard on left side
+            const leaderboard = document.getElementById('live-leaderboard');
+            const entries = document.getElementById('leaderboard-entries');
+            if (leaderboard && entries) {
+                leaderboard.style.display = 'block';
+
+                // Get prize amounts from input fields
+                const prizes = [
+                    parseInt(document.getElementById('prize1').value) || 0,
+                    parseInt(document.getElementById('prize2').value) || 0,
+                    parseInt(document.getElementById('prize3').value) || 0
+                ];
+                const defaultPrize = 200; // Non-top-3 prize
+                const prize = data.rank <= 3 ? prizes[data.rank - 1] : defaultPrize;
+
+                // Medal emojis for display
+                const medalEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+                const medalIcon = medalEmojis[data.rank - 1] || `#${data.rank}`;
+
+                // Create entry
+                const entry = document.createElement('div');
+                entry.style.cssText = 'padding:5px 0;border-bottom:1px solid rgba(255,215,0,0.3);';
+                // Participation prize logic - 4th+ place waits for slot result
+                let displayPrize = '';
+                // Create unique ID for row to update later
+                entry.id = `leaderboard-row-${data.player_id}`;
+
+                if (data.rank <= 3) {
+                    displayPrize = `<span style="color:gold;float:right;font-weight:bold;">$${prize}</span>`;
                 } else {
-                    timerEl.style.color = '#FFD700';
+                    // Initial state: Waiting for slots
+                    displayPrize = `<span class="prize-value" style="color:#aaa;float:right;font-size:0.8em;">🎰 抽獎中...</span>`;
+                }
+
+                entry.innerHTML = `${medalIcon} ${data.player_name} ${displayPrize}`;
+                entries.appendChild(entry);
+
+                // Animate new entry
+                entry.animate([
+                    { backgroundColor: 'rgba(255,215,0,0.3)', transform: 'translateX(-20px)' },
+                    { backgroundColor: 'transparent', transform: 'translateX(0)' }
+                ], { duration: 500 });
+            }
+        }
+
+        // Quiz sent - a question was sent to a player
+        socket.on('quiz_sent', (data) => {
+            console.log('Quiz sent to:', data);
+
+            // Add question mark effect to the horse
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+            if (horseEl) {
+                horseEl.classList.add('answering');
+                // Store timeout ID to clear later if answered quickly
+                horseEl.dataset.answeringTimeout = setTimeout(() => {
+                    horseEl.classList.remove('answering');
+                }, 15000); // Quiz timeout is 15 seconds
+            }
+
+            // Player-specific colors
+            const playerColors = [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+                '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+            ];
+            const playerColor = playerColors[data.player_index % playerColors.length] || '#FFD700';
+
+            const floatingText = document.createElement('div');
+            floatingText.style.cssText = `position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:${playerColor};text-shadow:0 0 10px ${playerColor};z-index:1000;text-align:center;pointer-events:none;`;
+            floatingText.innerHTML = `❓ ${data.player_name} 正在作答...`;
+            document.body.appendChild(floatingText);
+            floatingText.animate([
+                { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+                { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
+            ], { duration: 3000, easing: 'ease-out' });
+            setTimeout(() => floatingText.remove(), 3000);
+        });
+
+        // Quiz answered - show result on host
+        function showQuizResultEffect(data) {
+            console.log('Quiz answered:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            // Remove the question mark effect immediately
+            if (horseEl) {
+                horseEl.classList.remove('answering');
+                if (horseEl.dataset.answeringTimeout) {
+                    clearTimeout(parseInt(horseEl.dataset.answeringTimeout));
                 }
             }
 
-            // Player finished - show finish animation and rank
-            socket.on('player_finished', (data) => {
-                console.log('Player finished:', data);
-                const raceTrack = document.getElementById('race-oval-track');
-                const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+            // Create result notification
+            const floatingText = document.createElement('div');
+            floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:28px;font-weight:bold;z-index:1000;text-align:center;pointer-events:none;';
 
+            if (data.correct) {
+                floatingText.style.color = '#00FF00';
+                floatingText.style.textShadow = '0 0 10px #0f0';
+                floatingText.innerHTML = `✅ ${data.player_name} 答對了! +5%`;
+
+                // Add jet boost effect 💨 - direction based on horse movement
                 if (horseEl) {
-                    // Add golden glow animation
-                    horseEl.style.filter = 'drop-shadow(0 0 10px gold) drop-shadow(0 0 20px yellow)';
-                    horseEl.style.transform = 'scale(1.2)';
+                    // Find player and get current progress to determine direction
+                    const player = players.find(p => p.id === data.player_id);
+                    const progress = player ? player.progress : 0;
+                    const direction = getHorseDirection(progress);
 
-                    // Add rank badge
-                    let rankBadge = horseEl.querySelector('.rank-badge');
-                    if (!rankBadge) {
-                        rankBadge = document.createElement('div');
-                        rankBadge.className = 'rank-badge';
-                        rankBadge.style.cssText = 'position:absolute;top:-25px;left:50%;transform:translateX(-50%);font-size:20px;font-weight:bold;color:gold;text-shadow:0 0 5px #000;z-index:100;';
-                        horseEl.appendChild(rankBadge);
-                    }
+                    // Set CSS variable for jet direction (opposite to movement)
+                    // direction = 1 means facing right, so jet should be on left (behind)
+                    // direction = -1 means facing left, so jet should be on right (behind)
+                    horseEl.style.setProperty('--jet-dir', direction === 1 ? 'left' : 'right');
 
-                    // Show rank with medal emoji
-                    const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-                    rankBadge.innerText = medals[data.rank - 1] || `#${data.rank}`;
+                    horseEl.classList.add('jet-boost');
+                    setTimeout(() => {
+                        horseEl.classList.remove('jet-boost');
+                        horseEl.style.removeProperty('--jet-dir');
+                    }, 2000);
+                    showEffectOnHorse(horseEl, 'food');
+                }
+            } else {
+                floatingText.style.color = '#FF0000';
+                floatingText.style.textShadow = '0 0 10px #f00';
+                floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 5 秒!`;
 
-                    // Celebration animation on horse
-                    horseEl.animate([
-                        { transform: 'scale(1.2) rotate(-5deg)' },
-                        { transform: 'scale(1.3) rotate(5deg)' },
-                        { transform: 'scale(1.2) rotate(-5deg)' },
-                        { transform: 'scale(1.2) rotate(0deg)' }
-                    ], { duration: 500, iterations: 3 });
+                // Add dizzy effect 😵 instead of frozen ❄️
+                if (horseEl) {
+                    horseEl.classList.add('dizzy');
+                    setTimeout(() => horseEl.classList.remove('dizzy'), 5000);
+                }
+            }
+
+            document.body.appendChild(floatingText);
+            floatingText.animate([
+                { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+                { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
+            ], { duration: 2500, easing: 'ease-out' });
+            setTimeout(() => floatingText.remove(), 2500);
+        }
+
+        // Player disconnected during race
+        socket.on('player_disconnected', (data) => {
+            console.log('Player disconnected:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+
+            if (horseEl) {
+                // Add disconnect indicator
+                horseEl.style.opacity = '0.5';
+                horseEl.style.filter = 'grayscale(100%)';
+
+                let dcBadge = horseEl.querySelector('.dc-badge');
+                if (!dcBadge) {
+                    dcBadge = document.createElement('div');
+                    dcBadge.className = 'dc-badge';
+                    dcBadge.style.cssText = 'position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:16px;background:rgba(255,0,0,0.8);color:white;padding:2px 6px;border-radius:5px;';
+                    dcBadge.innerText = '📡 離線';
+                    horseEl.appendChild(dcBadge);
+                }
+            }
+
+            // Show notification
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:5%;left:50%;transform:translateX(-50%);font-size:18px;color:#FF6B6B;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:10px;z-index:9999;';
+            msg.innerHTML = `📡 ${data.player_name} 已離線`;
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+        });
+
+        // Player reconnected
+        socket.on('player_reconnected', (data) => {
+            console.log('Player reconnected:', data);
+            const raceTrack = document.getElementById('race-oval-track');
+
+            // Try to find horse element by OLD id first (because that's what's on screen)
+            let horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.old_player_id) : null;
+
+            // If not found by old ID, try new ID as fallback
+            if (!horseEl && raceTrack) {
+                horseEl = raceTrack.querySelector('#track-' + data.player_id);
+            }
+
+            if (horseEl) {
+                // Update element ID to new player ID
+                horseEl.id = 'track-' + data.player_id;
+
+                // Remove disconnect indicator
+                horseEl.style.opacity = '1';
+                horseEl.style.filter = '';
+                const dcBadge = horseEl.querySelector('.dc-badge');
+                if (dcBadge) dcBadge.remove();
+
+                console.log('Horse element updated:', data.old_player_id, '->', data.player_id);
+            } else {
+                console.log('Could not find horse element for:', data.old_player_id, 'or', data.player_id);
+            }
+
+            // Show notification
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:5%;left:50%;transform:translateX(-50%);font-size:18px;color:#00FF00;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:10px;z-index:9999;';
+            msg.innerHTML = `✅ ${data.player_name} 已重新連線`;
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+        });
+
+        // Quiz timeout - player didn't answer in time
+        function showQuizTimeoutEffect(data) {
+            console.log('Quiz timeout:', data);
+
+            // Remove question mark effect and add brief timeout visual
+            const raceTrack = document.getElementById('race-oval-track');
+            const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
+            if (horseEl) {
+                horseEl.classList.remove('answering');
+                // Brief timeout visual effect (no freeze penalty)
+                horseEl.classList.add('timeout');
+                setTimeout(() => horseEl.classList.remove('timeout'), 1000);
+            }
+
+            const floatingText = document.createElement('div');
+            floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#888;text-shadow:0 0 10px #666;z-index:1000;text-align:center;pointer-events:none;';
+            floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答`;
+            document.body.appendChild(floatingText);
+            floatingText.animate([
+                { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+                { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
+            ], { duration: 2000, easing: 'ease-out' });
+            setTimeout(() => floatingText.remove(), 2000);
+        }
+
+        function renderItem(item, trackId) {
+            const track = document.getElementById(trackId);
+            if (!track) return;
+
+            const pos = getOvalPosition(0, 1, item.position);
+
+            const itemDiv = document.createElement('div');
+            itemDiv.id = 'item-' + item.id;
+            itemDiv.className = 'track-item';
+            itemDiv.style.position = 'absolute';
+            itemDiv.style.left = pos.x + '%';
+            itemDiv.style.top = pos.y + '%';
+            itemDiv.style.transform = 'translate(-50%, -50%)';
+            itemDiv.style.fontSize = '35px';
+            itemDiv.style.zIndex = '8';
+            itemDiv.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))';
+            itemDiv.style.opacity = '0';  // Start invisible
+            itemDiv.style.transition = 'opacity 0.5s ease-in';
+
+            // Different icons for different types
+            itemDiv.innerText = item.type === 'food' ? '🍎' : '🔧';
+
+            track.appendChild(itemDiv);
+
+            // Fade in after a small delay
+            setTimeout(() => {
+                itemDiv.style.opacity = '1';
+                itemDiv.style.animation = 'item-bounce 0.5s ease-in-out infinite';
+            }, 50);
+        }
+
+        function removeItem(itemId, effectType, playerId) {
+            console.log('Removing item:', itemId, effectType, playerId);
+            const itemEl = document.getElementById('item-' + itemId);
+            if (itemEl) {
+                const rect = itemEl.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+
+                // Create visual effect at item location
+                if (effectType === 'food') {
+                    createDustEffect(x, y, '#FFD700'); // Gold sparkles
+                } else {
+                    createDizzyEffect(x, y); // Dizzy stars
                 }
 
-                // Show rank announcement
-                const announcement = document.createElement('div');
-                announcement.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);font-size:36px;font-weight:bold;color:#FFD700;text-shadow:0 0 15px gold, 0 0 30px orange;z-index:2000;text-align:center;pointer-events:none;';
-                const medals = ['🥇', '🥈', '🥉'];
-                const medal = medals[data.rank - 1] || `第${data.rank}名`;
-                announcement.innerHTML = `${medal} ${data.player_name} 到達終點!`;
-                document.body.appendChild(announcement);
+                // Remove item immediately after effect starts
+                itemEl.style.transition = 'opacity 0.2s, transform 0.2s';
+                itemEl.style.opacity = '0';
+                itemEl.style.transform = 'translate(-50%, -80%) scale(1.5)';
+                setTimeout(() => {
+                    if (itemEl.parentNode) {
+                        itemEl.parentNode.removeChild(itemEl);
+                    }
+                }, 200);
+            } else {
+                console.log('Item element not found:', 'item-' + itemId);
+            }
 
-                announcement.animate([
-                    { opacity: 0, transform: 'translateX(-50%) scale(0.5)' },
-                    { opacity: 1, transform: 'translateX(-50%) scale(1.2)' },
-                    { opacity: 1, transform: 'translateX(-50%) scale(1)' }
+            // Add effect indicator on the horse
+            if (playerId) {
+                const horseEl = document.querySelector('#track-' + playerId);
+                if (horseEl) {
+                    console.log('Found horse element, showing effect:', effectType);
+                    showEffectOnHorse(horseEl, effectType);
+
+                    // Also create particles at horse position
+                    const horseRect = horseEl.getBoundingClientRect();
+                    const hx = horseRect.left + horseRect.width / 2;
+                    const hy = horseRect.top + horseRect.height / 2;
+                    if (effectType === 'food') {
+                        createDustEffect(hx, hy, '#00FF00'); // Green sparkles on horse
+                    } else {
+                        createDizzyEffect(hx, hy); // Dizzy on horse
+                    }
+                } else {
+                    console.log('Horse element not found:', '#track-' + playerId);
+                }
+            }
+        }
+
+        function createDustEffect(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.style.position = 'fixed';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.width = '8px';
+                particle.style.height = '8px';
+                particle.style.background = color;
+                particle.style.borderRadius = '50%';
+                particle.style.pointerEvents = 'none';
+                particle.style.zIndex = '1000';
+                particle.style.boxShadow = '0 0 6px ' + color;
+
+                const angle = (i / 8) * Math.PI * 2;
+                const distance = 30 + Math.random() * 20;
+                const endX = x + Math.cos(angle) * distance;
+                const endY = y + Math.sin(angle) * distance;
+
+                document.body.appendChild(particle);
+
+                particle.animate([
+                    { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                    { transform: `translate(${endX - x - 4}px, ${endY - y - 4}px) scale(0)`, opacity: 0 }
                 ], { duration: 500, easing: 'ease-out' });
 
-                setTimeout(() => {
-                    announcement.animate([
-                        { opacity: 1 },
-                        { opacity: 0 }
-                    ], { duration: 500 });
-                    setTimeout(() => announcement.remove(), 500);
-                }, 3000);
+                setTimeout(() => particle.remove(), 500);
+            }
+        }
 
-                // Play win sound for top 3
-                if (data.rank === 1) {
-                    // First place: 5 seconds celebration then resume music
-                    playVictoryInterlude();
-                } else if (data.rank <= 3) {
-                    // 2nd/3rd: Short sound only, don't interrupt race music if playing
-                    playShortWinSound();
-                }
-            });
+        function createDizzyEffect(x, y) {
+            const symbols = ['💫', '⭐', '✨', '😵'];
+            for (let i = 0; i < 4; i++) {
+                const star = document.createElement('div');
+                star.innerText = symbols[i];
+                star.style.position = 'fixed';
+                star.style.left = x + 'px';
+                star.style.top = y + 'px';
+                star.style.fontSize = '24px';
+                star.style.pointerEvents = 'none';
+                star.style.zIndex = '1000';
 
-            // Slot machine winner notification
-            socket.on('host_slot_winner', (data) => {
-                console.log('Slot winner:', data);
+                const angle = (i / 4) * Math.PI * 2;
+                const distance = 40;
 
-                // Play win sound
-                const winAudio = new Audio('/static/sounds/slot-machine-coin-payout-1-188227.mp3'); // Sound to be added
-                winAudio.volume = 1.0;
-                winAudio.play().catch(e => console.log('Audio error:', e));
+                document.body.appendChild(star);
 
-                // Create notification
-                const announcement = document.createElement('div');
-                announcement.style.cssText = 'position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);z-index:9999;text-align:center;background:rgba(0,0,0,0.9);padding:30px 50px;border-radius:20px;border:3px solid gold;box-shadow: 0 0 50px gold;';
+                star.animate([
+                    { transform: 'translate(-50%, -50%) rotate(0deg)', opacity: 1 },
+                    { transform: `translate(${Math.cos(angle) * distance - 12}px, ${Math.sin(angle) * distance - 12}px) rotate(360deg)`, opacity: 0 }
+                ], { duration: 800, easing: 'ease-out' });
 
-                announcement.innerHTML = `
-                <div style="font-size:60px;margin-bottom:15px;">🎰</div>
-                <div style="font-size:32px;color:#FFD700;font-weight:bold;">幸運獎金得主！</div>
-                <div style="font-size:40px;color:white;margin:15px 0;">${data.player_name}</div>
-                <div style="font-size:48px;color:#00FF00;font-weight:bold;">$${data.amount}</div>
-                <div style="font-size:20px;color:#aaa;margin-top:20px;">剩餘名額: ${data.winners_count} / ${data.max_winners}</div>
-            `;
+                setTimeout(() => star.remove(), 800);
+            }
+        }
 
-                document.body.appendChild(announcement);
+        function showEffectOnHorse(horseEl, effectType) {
+            console.log('showEffectOnHorse called:', effectType);
 
-                // Confetti effect? (Optional, if library exists, otherwise simple pulse)
-                announcement.animate([
-                    { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0 },
-                    { transform: 'translate(-50%, -50%) scale(1.1)', opacity: 1 },
-                    { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 }
-                ], { duration: 500, easing: 'back-out' });
+            // Remove any existing effect classes
+            horseEl.classList.remove('boosted', 'slowed', 'dodging');
 
-                setTimeout(() => {
-                    announcement.animate([
-                        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-                        { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0 }
-                    ], { duration: 500 });
-                    setTimeout(() => announcement.remove(), 500);
-                }, 6000); // Show for 6 seconds
-                // Update live leaderboard on left side
-                const leaderboard = document.getElementById('live-leaderboard');
-                const entries = document.getElementById('leaderboard-entries');
-                if (leaderboard && entries) {
-                    leaderboard.style.display = 'block';
-
-                    // Get prize amounts from input fields
-                    const prizes = [
-                        parseInt(document.getElementById('prize1').value) || 0,
-                        parseInt(document.getElementById('prize2').value) || 0,
-                        parseInt(document.getElementById('prize3').value) || 0
-                    ];
-                    const defaultPrize = 200; // Non-top-3 prize
-                    const prize = data.rank <= 3 ? prizes[data.rank - 1] : defaultPrize;
-
-                    // Medal emojis for display
-                    const medalEmojis = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-                    const medalIcon = medalEmojis[data.rank - 1] || `#${data.rank}`;
-
-                    // Create entry
-                    const entry = document.createElement('div');
-                    entry.style.cssText = 'padding:5px 0;border-bottom:1px solid rgba(255,215,0,0.3);';
-                    entry.innerHTML = `${medalIcon} ${data.player_name} <span style="color:gold;float:right;">$${prize}</span>`;
-                    entries.appendChild(entry);
-
-                    // Animate new entry
-                    entry.animate([
-                        { backgroundColor: 'rgba(255,215,0,0.3)', transform: 'translateX(-20px)' },
-                        { backgroundColor: 'transparent', transform: 'translateX(0)' }
-                    ], { duration: 500 });
-                }
-            });
-
-            // Quiz sent - a question was sent to a player
-            socket.on('quiz_sent', (data) => {
-                console.log('Quiz sent to:', data);
-
-                // Add question mark effect to the horse
-                const raceTrack = document.getElementById('race-oval-track');
-                const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
-                if (horseEl) {
-                    horseEl.classList.add('answering');
-                    // Store timeout ID to clear later if answered quickly
-                    horseEl.dataset.answeringTimeout = setTimeout(() => {
-                        horseEl.classList.remove('answering');
-                    }, 15000); // Quiz timeout is 15 seconds
-                }
-
-                // Player-specific colors
-                const playerColors = [
-                    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-                    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
-                ];
-                const playerColor = playerColors[data.player_index % playerColors.length] || '#FFD700';
-
-                const floatingText = document.createElement('div');
-                floatingText.style.cssText = `position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:${playerColor};text-shadow:0 0 10px ${playerColor};z-index:1000;text-align:center;pointer-events:none;`;
-                floatingText.innerHTML = `❓ ${data.player_name} 正在作答...`;
-                document.body.appendChild(floatingText);
-                floatingText.animate([
-                    { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
-                    { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
-                ], { duration: 3000, easing: 'ease-out' });
-                setTimeout(() => floatingText.remove(), 3000);
-            });
-
-            // Quiz answered - show result on host
-            socket.on('quiz_answered', (data) => {
-                console.log('Quiz answered:', data);
-                const raceTrack = document.getElementById('race-oval-track');
-                const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
-
-                // Remove the question mark effect immediately
-                if (horseEl) {
-                    horseEl.classList.remove('answering');
-                    if (horseEl.dataset.answeringTimeout) {
-                        clearTimeout(parseInt(horseEl.dataset.answeringTimeout));
-                    }
-                }
-
-                // Create result notification
-                const floatingText = document.createElement('div');
-                floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:28px;font-weight:bold;z-index:1000;text-align:center;pointer-events:none;';
-
-                if (data.correct) {
-                    floatingText.style.color = '#00FF00';
-                    floatingText.style.textShadow = '0 0 10px #0f0';
-                    floatingText.innerHTML = `✅ ${data.player_name} 答對了! +5%`;
-
-                    // Add jet boost effect 💨 - direction based on horse movement
-                    if (horseEl) {
-                        // Find player and get current progress to determine direction
-                        const player = players.find(p => p.id === data.player_id);
-                        const progress = player ? player.progress : 0;
-                        const direction = getHorseDirection(progress);
-
-                        // Set CSS variable for jet direction (opposite to movement)
-                        // direction = 1 means facing right, so jet should be on left (behind)
-                        // direction = -1 means facing left, so jet should be on right (behind)
-                        horseEl.style.setProperty('--jet-dir', direction === 1 ? 'left' : 'right');
-
-                        horseEl.classList.add('jet-boost');
-                        setTimeout(() => {
-                            horseEl.classList.remove('jet-boost');
-                            horseEl.style.removeProperty('--jet-dir');
-                        }, 2000);
-                        showEffectOnHorse(horseEl, 'food');
-                    }
-                    playCorrectSound();
-                } else {
-                    floatingText.style.color = '#FF0000';
-                    floatingText.style.textShadow = '0 0 10px #f00';
-                    floatingText.innerHTML = `❌ ${data.player_name} 答錯了! 凍結 5 秒!`;
-
-                    // Add dizzy effect 😵 instead of frozen ❄️
-                    if (horseEl) {
-                        horseEl.classList.add('dizzy');
-                        setTimeout(() => horseEl.classList.remove('dizzy'), 5000);
-                    }
-                    playWrongSound();
-                }
-
-                document.body.appendChild(floatingText);
-                floatingText.animate([
-                    { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
-                    { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
-                ], { duration: 2500, easing: 'ease-out' });
-                setTimeout(() => floatingText.remove(), 2500);
-            });
-
-            // Player disconnected during race
-            socket.on('player_disconnected', (data) => {
-                console.log('Player disconnected:', data);
-                const raceTrack = document.getElementById('race-oval-track');
-                const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
-
-                if (horseEl) {
-                    // Add disconnect indicator
-                    horseEl.style.opacity = '0.5';
-                    horseEl.style.filter = 'grayscale(100%)';
-
-                    let dcBadge = horseEl.querySelector('.dc-badge');
-                    if (!dcBadge) {
-                        dcBadge = document.createElement('div');
-                        dcBadge.className = 'dc-badge';
-                        dcBadge.style.cssText = 'position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:16px;background:rgba(255,0,0,0.8);color:white;padding:2px 6px;border-radius:5px;';
-                        dcBadge.innerText = '📡 離線';
-                        horseEl.appendChild(dcBadge);
-                    }
-                }
-
-                // Show notification
-                const msg = document.createElement('div');
-                msg.style.cssText = 'position:fixed;top:5%;left:50%;transform:translateX(-50%);font-size:18px;color:#FF6B6B;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:10px;z-index:9999;';
-                msg.innerHTML = `📡 ${data.player_name} 已離線`;
-                document.body.appendChild(msg);
-                setTimeout(() => msg.remove(), 3000);
-            });
-
-            // Player reconnected
-            socket.on('player_reconnected', (data) => {
-                console.log('Player reconnected:', data);
-                const raceTrack = document.getElementById('race-oval-track');
-
-                // Try to find horse element by OLD id first (because that's what's on screen)
-                let horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.old_player_id) : null;
-
-                // If not found by old ID, try new ID as fallback
-                if (!horseEl && raceTrack) {
-                    horseEl = raceTrack.querySelector('#track-' + data.player_id);
-                }
-
-                if (horseEl) {
-                    // Update element ID to new player ID
-                    horseEl.id = 'track-' + data.player_id;
-
-                    // Remove disconnect indicator
-                    horseEl.style.opacity = '1';
-                    horseEl.style.filter = '';
-                    const dcBadge = horseEl.querySelector('.dc-badge');
-                    if (dcBadge) dcBadge.remove();
-
-                    console.log('Horse element updated:', data.old_player_id, '->', data.player_id);
-                } else {
-                    console.log('Could not find horse element for:', data.old_player_id, 'or', data.player_id);
-                }
-
-                // Show notification
-                const msg = document.createElement('div');
-                msg.style.cssText = 'position:fixed;top:5%;left:50%;transform:translateX(-50%);font-size:18px;color:#00FF00;background:rgba(0,0,0,0.8);padding:10px 20px;border-radius:10px;z-index:9999;';
-                msg.innerHTML = `✅ ${data.player_name} 已重新連線`;
-                document.body.appendChild(msg);
-                setTimeout(() => msg.remove(), 3000);
-            });
-
-            // Quiz timeout - player didn't answer in time
-            socket.on('quiz_timeout_notify', (data) => {
-                console.log('Quiz timeout:', data);
-
-                // Remove question mark effect and add brief timeout visual
-                const raceTrack = document.getElementById('race-oval-track');
-                const horseEl = raceTrack ? raceTrack.querySelector('#track-' + data.player_id) : null;
-                if (horseEl) {
-                    horseEl.classList.remove('answering');
-                    // Brief timeout visual effect (no freeze penalty)
-                    horseEl.classList.add('timeout');
-                    setTimeout(() => horseEl.classList.remove('timeout'), 1000);
-                }
-
-                const floatingText = document.createElement('div');
-                floatingText.style.cssText = 'position:fixed;top:10%;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;color:#888;text-shadow:0 0 10px #666;z-index:1000;text-align:center;pointer-events:none;';
-                floatingText.innerHTML = `⏱️ ${data.player_name} 超時未答`;
-                document.body.appendChild(floatingText);
-                floatingText.animate([
-                    { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
-                    { opacity: 0, transform: 'translateX(-50%) translateY(-30px)' }
-                ], { duration: 2000, easing: 'ease-out' });
-                setTimeout(() => floatingText.remove(), 2000);
-            });
-
-            function renderItem(item, trackId) {
-                const track = document.getElementById(trackId);
-                if (!track) return;
-
-                const pos = getOvalPosition(0, 1, item.position);
-
-                const itemDiv = document.createElement('div');
-                itemDiv.id = 'item-' + item.id;
-                itemDiv.className = 'track-item';
-                itemDiv.style.position = 'absolute';
-                itemDiv.style.left = pos.x + '%';
-                itemDiv.style.top = pos.y + '%';
-                itemDiv.style.transform = 'translate(-50%, -50%)';
-                itemDiv.style.fontSize = '35px';
-                itemDiv.style.zIndex = '8';
-                itemDiv.style.filter = 'drop-shadow(2px 2px 4px rgba(0,0,0,0.5))';
-                itemDiv.style.opacity = '0';  // Start invisible
-                itemDiv.style.transition = 'opacity 0.5s ease-in';
-
-                // Different icons for different types
-                itemDiv.innerText = item.type === 'food' ? '🍎' : '🔧';
-
-                track.appendChild(itemDiv);
-
-                // Fade in after a small delay
-                setTimeout(() => {
-                    itemDiv.style.opacity = '1';
-                    itemDiv.style.animation = 'item-bounce 0.5s ease-in-out infinite';
-                }, 50);
+            // Add the appropriate effect class
+            const isFood = effectType === 'food';
+            if (isFood) {
+                horseEl.classList.add('boosted');
+                console.log('Added boosted class');
+            } else {
+                horseEl.classList.add('slowed');
+                console.log('Added slowed class');
             }
 
-            function removeItem(itemId, effectType, playerId) {
-                console.log('Removing item:', itemId, effectType, playerId);
-                const itemEl = document.getElementById('item-' + itemId);
-                if (itemEl) {
-                    const rect = itemEl.getBoundingClientRect();
-                    const x = rect.left + rect.width / 2;
-                    const y = rect.top + rect.height / 2;
+            // Add floating text indicator
+            const indicator = document.createElement('div');
+            indicator.style.position = 'absolute';
+            indicator.style.top = '-40px';
+            indicator.style.left = '50%';
+            indicator.style.transform = 'translateX(-50%)';
+            indicator.style.fontSize = '28px';
+            indicator.style.fontWeight = 'bold';
+            indicator.style.animation = 'effect-pulse 0.3s ease-in-out 6';
+            indicator.style.textShadow = effectType === 'food'
+                ? '0 0 15px #0f0, 0 0 30px #0f0'
+                : '0 0 15px #f00, 0 0 30px #f00';
+            indicator.innerText = effectType === 'food' ? '🚀加速!' : '�減速!';
+            indicator.style.color = effectType === 'food' ? '#0f0' : '#f00';
 
-                    // Create visual effect at item location
-                    if (effectType === 'food') {
-                        createDustEffect(x, y, '#FFD700'); // Gold sparkles
+            horseEl.appendChild(indicator);
+
+            // Remove effect after duration
+            setTimeout(() => {
+                indicator.remove();
+                horseEl.classList.remove('boosted', 'slowed');
+            }, effectType === 'food' ? 3000 : 2000);
+        }
+
+
+        function playItemSound(type) {
+            if (type === 'boost') {
+                // Happy ascending tone
+                playTone(523.25, 'sine', 0.1, 0.2);
+                setTimeout(() => playTone(659.25, 'sine', 0.1, 0.2), 100);
+            } else {
+                // Sad descending tone
+                playTone(392, 'sawtooth', 0.15, 0.2);
+                setTimeout(() => playTone(329.63, 'sawtooth', 0.15, 0.2), 120);
+            }
+        }
+
+
+        function renderWinnersTable(results) {
+            document.getElementById('race-screen').style.display = 'none';
+            document.getElementById('results-screen').style.display = 'block';
+
+            // Audio and Confetti handled by HostLogic
+
+            const list = document.getElementById('winners-list');
+            list.innerHTML = '';
+
+            // Create a table
+            let html = '<table style="margin: 0 auto; font-size: 24px; border-collapse: collapse;">';
+            html += '<tr><th style="padding:10px;">名次</th><th style="padding:10px;">名字</th><th style="padding:10px;">獎金 💰</th></tr>';
+
+            results.forEach(p => {
+                let medalEmoji = '';
+                if (p.rank === 1) medalEmoji = '🥇';
+                else if (p.rank === 2) medalEmoji = '🥈';
+                else if (p.rank === 3) medalEmoji = '🥉';
+
+                let prizeDisplay = `$${p.prize}`;
+                if (p.rank > 3) {
+                    if (p.prize > 200) {
+                        prizeDisplay = `<span style="color:#00FF00;font-weight:bold;">🎉 幸運獎 $${p.prize}</span>`;
                     } else {
-                        createDizzyEffect(x, y); // Dizzy stars
+                        prizeDisplay = `<span style="color:#aaa;font-size:0.9em;">參加獎 $${p.prize}</span>`;
                     }
-
-                    // Remove item immediately after effect starts
-                    itemEl.style.transition = 'opacity 0.2s, transform 0.2s';
-                    itemEl.style.opacity = '0';
-                    itemEl.style.transform = 'translate(-50%, -80%) scale(1.5)';
-                    setTimeout(() => {
-                        if (itemEl.parentNode) {
-                            itemEl.parentNode.removeChild(itemEl);
-                        }
-                    }, 200);
                 } else {
-                    console.log('Item element not found:', 'item-' + itemId);
+                    prizeDisplay = `<span style="color:gold;font-weight:bold;">$${p.prize}</span>`;
                 }
 
-                // Add effect indicator on the horse
-                if (playerId) {
-                    const horseEl = document.querySelector('#track-' + playerId);
-                    if (horseEl) {
-                        console.log('Found horse element, showing effect:', effectType);
-                        showEffectOnHorse(horseEl, effectType);
-
-                        // Also create particles at horse position
-                        const horseRect = horseEl.getBoundingClientRect();
-                        const hx = horseRect.left + horseRect.width / 2;
-                        const hy = horseRect.top + horseRect.height / 2;
-                        if (effectType === 'food') {
-                            createDustEffect(hx, hy, '#00FF00'); // Green sparkles on horse
-                        } else {
-                            createDizzyEffect(hx, hy); // Dizzy on horse
-                        }
-                    } else {
-                        console.log('Horse element not found:', '#track-' + playerId);
-                    }
-                }
-            }
-
-            function createDustEffect(x, y, color) {
-                for (let i = 0; i < 8; i++) {
-                    const particle = document.createElement('div');
-                    particle.style.position = 'fixed';
-                    particle.style.left = x + 'px';
-                    particle.style.top = y + 'px';
-                    particle.style.width = '8px';
-                    particle.style.height = '8px';
-                    particle.style.background = color;
-                    particle.style.borderRadius = '50%';
-                    particle.style.pointerEvents = 'none';
-                    particle.style.zIndex = '1000';
-                    particle.style.boxShadow = '0 0 6px ' + color;
-
-                    const angle = (i / 8) * Math.PI * 2;
-                    const distance = 30 + Math.random() * 20;
-                    const endX = x + Math.cos(angle) * distance;
-                    const endY = y + Math.sin(angle) * distance;
-
-                    document.body.appendChild(particle);
-
-                    particle.animate([
-                        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
-                        { transform: `translate(${endX - x - 4}px, ${endY - y - 4}px) scale(0)`, opacity: 0 }
-                    ], { duration: 500, easing: 'ease-out' });
-
-                    setTimeout(() => particle.remove(), 500);
-                }
-            }
-
-            function createDizzyEffect(x, y) {
-                const symbols = ['💫', '⭐', '✨', '😵'];
-                for (let i = 0; i < 4; i++) {
-                    const star = document.createElement('div');
-                    star.innerText = symbols[i];
-                    star.style.position = 'fixed';
-                    star.style.left = x + 'px';
-                    star.style.top = y + 'px';
-                    star.style.fontSize = '24px';
-                    star.style.pointerEvents = 'none';
-                    star.style.zIndex = '1000';
-
-                    const angle = (i / 4) * Math.PI * 2;
-                    const distance = 40;
-
-                    document.body.appendChild(star);
-
-                    star.animate([
-                        { transform: 'translate(-50%, -50%) rotate(0deg)', opacity: 1 },
-                        { transform: `translate(${Math.cos(angle) * distance - 12}px, ${Math.sin(angle) * distance - 12}px) rotate(360deg)`, opacity: 0 }
-                    ], { duration: 800, easing: 'ease-out' });
-
-                    setTimeout(() => star.remove(), 800);
-                }
-            }
-
-            function showEffectOnHorse(horseEl, effectType) {
-                console.log('showEffectOnHorse called:', effectType);
-
-                // Remove any existing effect classes
-                horseEl.classList.remove('boosted', 'slowed', 'dodging');
-
-                // Add the appropriate effect class
-                const isFood = effectType === 'food';
-                if (isFood) {
-                    horseEl.classList.add('boosted');
-                    console.log('Added boosted class');
-                } else {
-                    horseEl.classList.add('slowed');
-                    console.log('Added slowed class');
-                }
-
-                // Add floating text indicator
-                const indicator = document.createElement('div');
-                indicator.style.position = 'absolute';
-                indicator.style.top = '-40px';
-                indicator.style.left = '50%';
-                indicator.style.transform = 'translateX(-50%)';
-                indicator.style.fontSize = '28px';
-                indicator.style.fontWeight = 'bold';
-                indicator.style.animation = 'effect-pulse 0.3s ease-in-out 6';
-                indicator.style.textShadow = effectType === 'food'
-                    ? '0 0 15px #0f0, 0 0 30px #0f0'
-                    : '0 0 15px #f00, 0 0 30px #f00';
-                indicator.innerText = effectType === 'food' ? '🚀加速!' : '�減速!';
-                indicator.style.color = effectType === 'food' ? '#0f0' : '#f00';
-
-                horseEl.appendChild(indicator);
-
-                // Remove effect after duration
-                setTimeout(() => {
-                    indicator.remove();
-                    horseEl.classList.remove('boosted', 'slowed');
-                }, effectType === 'food' ? 3000 : 2000);
-            }
-
-
-            function playItemSound(type) {
-                if (type === 'boost') {
-                    // Happy ascending tone
-                    playTone(523.25, 'sine', 0.1, 0.2);
-                    setTimeout(() => playTone(659.25, 'sine', 0.1, 0.2), 100);
-                } else {
-                    // Sad descending tone
-                    playTone(392, 'sawtooth', 0.15, 0.2);
-                    setTimeout(() => playTone(329.63, 'sawtooth', 0.15, 0.2), 120);
-                }
-            }
-
-
-            socket.on('game_results', (results) => {
-                document.getElementById('race-screen').style.display = 'none';
-                document.getElementById('results-screen').style.display = 'block';
-
-                playWinSound();
-                fireConfetti();
-
-                const list = document.getElementById('winners-list');
-                list.innerHTML = '';
-
-                // Create a table
-                let html = '<table style="margin: 0 auto; font-size: 24px; border-collapse: collapse;">';
-                html += '<tr><th style="padding:10px;">名次</th><th style="padding:10px;">名字</th><th style="padding:10px;">獎金 💰</th></tr>';
-
-                results.forEach(p => {
-                    let medalEmoji = '';
-                    if (p.rank === 1) medalEmoji = '🥇';
-                    else if (p.rank === 2) medalEmoji = '🥈';
-                    else if (p.rank === 3) medalEmoji = '🥉';
-
-                    html += `<tr>
+                html += `<tr>
                     <td style="padding:10px; border-bottom:1px solid gold;">${medalEmoji} #${p.rank}</td>
                     <td style="padding:10px; border-bottom:1px solid gold;">${p.name}</td>
-                    <td style="padding:10px; border-bottom:1px solid gold;">$${p.prize}</td>
+                    <td style="padding:10px; border-bottom:1px solid gold;">${prizeDisplay}</td>
                 </tr>`;
-                });
-                html += '</table>';
-                list.innerHTML = html;
             });
+            html += '</table>';
+            list.innerHTML = html;
+        }
 
-            socket.on('reset_game_client', () => {
-                location.reload();
-            });
 
-            // ========= Theme Switching =========
-            let currentTheme = 'hashimae';
 
-            function switchTheme(themeId) {
-                if (!isHostController) {
-                    alert('觀看模式無法切換主題');
-                    document.getElementById('theme-select').value = currentTheme;
-                    return;
-                }
-                socket.emit('set_theme', { theme_id: themeId });
+        // ========= Theme Switching =========
+        let currentTheme = 'hashimae';
+
+        function switchTheme(themeId) {
+            if (window.HostLogic) window.HostLogic.switchTheme(themeId);
+        }
+
+        function handleThemeChange(data) {
+            console.log('Theme changed to:', data.name);
+            currentTheme = data.theme_id;
+            document.getElementById('theme-select').value = data.theme_id;
+
+            // Update track background based on theme
+            applyTrackBackground(data.track_background);
+            // Update avatar folder for correct image paths
+            currentAvatarFolder = data.avatar_folder || '';
+
+            // Auto-show debug path for Mingchang theme inspection
+            if (data.theme_id === 'mingchang') {
+                console.log('Mingchang theme active - showing debug path');
+                setTimeout(() => showDebugPath(), 500); // Small delay to ensure render
+            } else {
+                hideDebugPath();
             }
+        }
 
-            socket.on('theme_changed', (data) => {
-                console.log('Theme changed to:', data.name);
-                currentTheme = data.theme_id;
-                document.getElementById('theme-select').value = data.theme_id;
+        // Current theme Logic handled by HostLogic
 
-                // Update track background based on theme
-                applyTrackBackground(data.track_background);
-                // Update avatar folder for correct image paths
-                currentAvatarFolder = data.avatar_folder || '';
 
-                // Auto-show debug path for Mingchang theme inspection
-                if (data.theme_id === 'mingchang') {
-                    console.log('Mingchang theme active - showing debug path');
-                    setTimeout(() => showDebugPath(), 500); // Small delay to ensure render
-                } else {
-                    hideDebugPath();
-                }
-            });
+        // Track current avatar folder for theme
+        let currentAvatarFolder = '';
 
-            socket.on('current_theme', (data) => {
-                currentTheme = data.theme_id;
-                document.getElementById('theme-select').value = data.theme_id;
-                applyTrackBackground(data.track_background);
-                currentAvatarFolder = data.avatar_folder || '';
-            });
+        // Get correct path for avatar image based on avatar_id prefix
+        // This handles mixed players (some joined with hashimae avatars, some with mingchang)
+        function getAvatarPath(avatarId) {
+            if (!avatarId) avatarId = 'horse1';
 
-            // Track current avatar folder for theme
-            let currentAvatarFolder = '';
-
-            // Get correct path for avatar image based on avatar_id prefix
-            // This handles mixed players (some joined with hashimae avatars, some with mingchang)
-            function getAvatarPath(avatarId) {
-                if (!avatarId) avatarId = 'horse1';
-
-                // Determine folder based on avatar_id prefix, NOT current theme
-                // hw_horse* avatars are in mingchang folder
-                // horse* avatars are in root images folder
-                if (avatarId.startsWith('hw_horse')) {
-                    return '/static/images/mingchang/' + avatarId + '.png';
-                }
-                // Default: regular horse avatars in root folder
-                return '/static/images/' + avatarId + '.png';
+            // Determine folder based on avatar_id prefix, NOT current theme
+            // hw_horse* avatars are in mingchang folder
+            // horse* avatars are in root images folder
+            if (avatarId.startsWith('hw_horse')) {
+                return '/static/images/mingchang/' + avatarId + '.png';
             }
+            // Default: regular horse avatars in root folder
+            return '/static/images/' + avatarId + '.png';
+        }
 
-            function applyTrackBackground(trackBg) {
-                const tracks = ['oval-track', 'race-oval-track'];
-                tracks.forEach(trackId => {
-                    const track = document.getElementById(trackId);
-                    if (track) {
-                        if (trackBg) {
-                            track.style.backgroundImage = `url(${trackBg})`;
-                            track.style.backgroundSize = 'cover';
-                            track.style.backgroundPosition = 'center';
-                        } else {
-                            track.style.backgroundImage = '';
-                        }
+        function applyTrackBackground(trackBg) {
+            const tracks = ['oval-track', 'race-oval-track'];
+            tracks.forEach(trackId => {
+                const track = document.getElementById(trackId);
+                if (track) {
+                    if (trackBg) {
+                        track.style.backgroundImage = `url(${trackBg})`;
+                        track.style.backgroundSize = 'cover';
+                        track.style.backgroundPosition = 'center';
+                    } else {
+                        track.style.backgroundImage = '';
                     }
-                });
-            }
-
-            // Request current theme on load
-            socket.on('connect', () => {
-                socket.emit('get_theme');
+                }
             });
-            // ===================================
+        }
 
-            function startRace() {
-                // Check if there are any players
-                const playerContainer = document.getElementById('oval-track');
-                const players = playerContainer ? playerContainer.children.length : 0;
-                if (players === 0) {
-                    alert('⚠️ 沒有玩家加入！請等待至少一位玩家掃碼加入後再開始比賽。');
-                    return;
+        // Request current theme on load
+        // Connect handled by HostLogic
+
+        // ===================================
+
+        function startRace() {
+            if (window.HostLogic) window.HostLogic.startRace();
+        }
+
+        function checkForFinish() {
+            // Polling removed in favor of socket events
+        }
+
+        function resetGame() {
+            if (window.HostLogic) window.HostLogic.resetGame();
+        }
+
+        function addBots(count) {
+            if (window.HostLogic) window.HostLogic.addBots(count);
+        }
+
+        // --- Audio System delegated to AudioManager ---
+        // Global visual helpers are initialized above or below.
+
+
+        // --- Confetti ---
+        function fireConfetti() {
+            var script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+            script.onload = () => {
+                var duration = 3000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+                function randomInRange(min, max) {
+                    return Math.random() * (max - min) + min;
                 }
 
-                const prize1 = parseInt(document.getElementById('prize1').value) || 0;
-                const prize2 = parseInt(document.getElementById('prize2').value) || 0;
-                const prize3 = parseInt(document.getElementById('prize3').value) || 0;
-                const luckyPrize = parseInt(document.getElementById('lucky-prize').value) || 500;
+                var interval = setInterval(function () {
+                    var timeLeft = animationEnd - Date.now();
 
-                socket.emit('start_race', {
-                    top3_prizes: [prize1, prize2, prize3],
-                    lucky_prize: luckyPrize,
-                    amount: prize1 + prize2 + prize3 // Total as fallback
-                });
-
-                checkFinishInterval = setInterval(checkForFinish, 1000);
-            }
-
-            function checkForFinish() {
-                // Let server handle finish detection
-            }
-
-            function resetGame() {
-                socket.emit('reset_game');
-            }
-
-            function addBots(count) {
-                socket.emit('add_bots', { count: count });
-            }
-
-            // --- Audio System (MP3 Files) ---
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-            // Audio elements for music
-            const waitingMusic = new Audio('/static/audio/等待入場的音樂.mp3');
-            waitingMusic.loop = true;
-            waitingMusic.volume = 0.5;
-
-            const racingMusic = new Audio('/static/audio/競賽的音樂Galloping Gags at 160.mp3');
-            racingMusic.loop = true;
-            racingMusic.volume = 0.6;
-
-            // Sound effects
-            const correctSound = new Audio('/static/audio/correct.mp3');
-            correctSound.volume = 0.6;
-
-            const wrongSound = new Audio('/static/audio/wrong.mp3');
-            wrongSound.volume = 0.6;
-
-            const fireworksSound = new Audio('/static/audio/new-years-eve-in-peru-fireworks-fire-crackers-and-rockets-to-celebrate-the-new-year-pisco-peru-2012-17692.mp3');
-            fireworksSound.volume = 0.7;
-
-            function playTone(freq, type, duration, volume = 0.3) {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.frequency.value = freq;
-                osc.type = type;
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-                osc.start();
-                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-                osc.stop(audioCtx.currentTime + duration);
-                return osc;
-            }
-
-            // 歡呼音效 - 當領先者變動時播放
-            function playCheerSound() {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                const freqs = [523.25, 659.25, 783.99, 1046.50];
-                freqs.forEach((freq, i) => {
-                    setTimeout(() => playTone(freq, 'triangle', 0.15, 0.4), i * 50);
-                });
-            }
-
-            // 等待音樂 - 使用 MP3
-            function startWaitingMusic() {
-                stopAllMusic();
-                waitingMusic.currentTime = 0;
-                waitingMusic.play().catch(e => console.log('Waiting music autoplay blocked'));
-            }
-
-            // 賽跑音樂 - 使用 MP3
-            function startRacingMusic() {
-                stopAllMusic();
-                racingMusic.currentTime = 0;
-                racingMusic.play().catch(e => console.log('Racing music autoplay blocked'));
-            }
-
-            function stopAllMusic() {
-                waitingMusic.pause();
-                racingMusic.pause();
-            }
-
-            function playStartSound() {
-                // Countdown beeps: 3-2-1-GO! (synthesized tones)
-                setTimeout(() => playTone(440, 'square', 0.1, 0.3), 0);
-                setTimeout(() => playTone(440, 'square', 0.1, 0.3), 1000);
-                setTimeout(() => playTone(440, 'square', 0.1, 0.3), 2000);
-                setTimeout(() => playTone(880, 'sawtooth', 0.5, 0.4), 3000);
-            }
-
-            function playWinSound() {
-                stopAllMusic();
-                // Play fireworks MP3
-                fireworksSound.currentTime = 0;
-                fireworksSound.play().catch(e => { });
-            }
-
-            // 答對/答錯音效
-            function playCorrectSound() {
-                correctSound.currentTime = 0;
-                correctSound.play().catch(e => { });
-            }
-
-            function playVictoryInterlude() {
-                stopAllMusic();
-                // Play fireworks
-                fireworksSound.currentTime = 0;
-                fireworksSound.play().catch(e => { });
-
-                // Resume racing music after 5 seconds if still racing
-                setTimeout(() => {
-                    // Check if race screen is still visible (game not over)
-                    if (document.getElementById('race-screen').style.display !== 'none') {
-                        fireworksSound.pause();
-                        startRacingMusic();
-                    }
-                }, 5000);
-            }
-
-            function playShortWinSound() {
-                // Play a happy tone sequence without stopping background music
-                const freqs = [523.25, 659.25, 783.99, 1046.50];
-                freqs.forEach((freq, i) => {
-                    setTimeout(() => playTone(freq, 'sine', 0.1, 0.4), i * 80);
-                });
-            }
-
-            function playWrongSound() {
-                wrongSound.currentTime = 0;
-                wrongSound.play().catch(e => { });
-            }
-
-            // 頁面載入時播放等待音樂
-            document.addEventListener('click', function startMusicOnce() {
-                startWaitingMusic();
-                document.removeEventListener('click', startMusicOnce);
-            }, { once: true });
-
-            // --- Confetti ---
-            function fireConfetti() {
-                var script = document.createElement('script');
-                script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                script.onload = () => {
-                    var duration = 3000;
-                    var animationEnd = Date.now() + duration;
-                    var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-                    function randomInRange(min, max) {
-                        return Math.random() * (max - min) + min;
+                    if (timeLeft <= 0) {
+                        return clearInterval(interval);
                     }
 
-                    var interval = setInterval(function () {
-                        var timeLeft = animationEnd - Date.now();
-
-                        if (timeLeft <= 0) {
-                            return clearInterval(interval);
-                        }
-
-                        var particleCount = 50 * (timeLeft / duration);
-                        // since particles fall down, start a bit higher than random
-                        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-                        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-                    }, 250);
-                };
-                document.head.appendChild(script);
-            }
-
-            // Add "Finish Now" button for testing/manual override
-            const finishBtn = document.createElement('button');
-            finishBtn.innerText = "結束比賽 (計算結果)";
-            finishBtn.className = 'btn host-control-btn';  // Added host-control-btn for permission control
-            finishBtn.style.fontSize = '14px';
-            finishBtn.style.marginTop = '20px';
-            finishBtn.onclick = () => {
-                if (!isHostController) {
-                    alert('觀看模式無法操作');
-                    return;
-                }
-                socket.emit('calculate_results');
+                    var particleCount = 50 * (timeLeft / duration);
+                    // since particles fall down, start a bit higher than random
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                    confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+                }, 250);
             };
-            document.getElementById('race-screen').appendChild(finishBtn);
+            document.head.appendChild(script);
+        }
 
-            // Initialize prize display
-            updatePrizeDisplay();
-        </script>
+        // Add "Finish Now" button for testing/manual override
+        const finishBtn = document.createElement('button');
+        finishBtn.innerText = "結束比賽 (計算結果)";
+        finishBtn.className = 'btn host-control-btn';  // Added host-control-btn for permission control
+        finishBtn.style.fontSize = '14px';
+        finishBtn.style.marginTop = '20px';
+        finishBtn.onclick = () => {
+            if (!isHostController) {
+                alert('觀看模式無法操作');
+                return;
+            }
+            socket.emit('calculate_results');
+        };
+        document.getElementById('race-screen').appendChild(finishBtn);
+
+        // Initialize prize display
+        updatePrizeDisplay();
+    </script>
 </body>
 
 </html>

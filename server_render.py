@@ -4,7 +4,6 @@ eventlet.monkey_patch()
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import random
-from threading import Lock
 import os
 from themes import get_theme, get_questions, get_all_themes, DEFAULT_THEME
 
@@ -42,9 +41,6 @@ RATE_LIMIT = {
     # sid: last_shake_time
 }
 RATE_LIMIT_INTERVAL = 0.05  # Minimum 50ms between shakes (20 per second max)
-
-# Slot machine lock
-SLOT_LOCK = Lock()
 
 # Player timeout tracking for memory cleanup
 PLAYER_LAST_ACTIVE = {
@@ -89,6 +85,10 @@ def bot_runner():
                 bonus = (intensity / 600.0)
                 move_amount = base_move + bonus
                 
+                # Debug Mode 20x Speed
+                if GAME_STATE.get('debug_mode'):
+                    move_amount *= 20
+                
                 player['progress'] = min(100, player['progress'] + move_amount)
                 
                 # Check finish
@@ -102,19 +102,71 @@ def bot_runner():
                         'player_id': bot_id,
                         'player_name': player['name'],
                         'rank': finished_count
-                    })
+                    }, namespace='/')
+                    
+                    # Trigger slot logic (same as on_shake)
+                    if finished_count > 3:
+                        # Auto-play slots for BOTS
+                        # Auto-play slots for BOTS
+                        print(f"Bot {player['name']} finished > 3rd, auto-playing slots (via runner)...")
+                        
+                        # Calculate Probability
+                        lucky_slots_remaining = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
+                        total_players = len(PLAYERS)
+                        remaining_candidates = max(1, total_players - finished_count + 1)
+                        win_prob = 0
+                        if lucky_slots_remaining > 0:
+                            win_prob = min(1.0, lucky_slots_remaining / remaining_candidates)
+                        
+                        print(f"[BOT SLOT] {player['name']} (Rank {finished_count}) - Prob: {win_prob:.2f}")
+
+                        def bot_slot_play_runner(bot_sid, prob):
+                            import eventlet
+                            wait_time = 1 if GAME_STATE.get('debug_mode') else 5
+                            eventlet.sleep(wait_time)
+                            
+                            import random
+                            is_winner = random.random() < prob
+                            
+                            prize = 200
+                            if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
+                                 GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
+                                 prize = GAME_STATE.get('lucky_prize', 500)
+                                 print(f"Bot {PLAYERS[bot_sid]['name']} WON lucky prize! (Prob: {prob:.2f})")
+                            else:
+                                 print(f"Bot {PLAYERS[bot_sid]['name']} lost slot. (Prob: {prob:.2f})")
+
+                            PLAYERS[bot_sid]['slot_prize'] = prize
+                            PLAYERS[bot_sid]['slot_done'] = True
+                            
+                            socketio.emit('slot_result_final', {
+                                'won': is_winner,
+                                'prize': prize,
+                                'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+                                'player_id': bot_sid,
+                                'player_name': PLAYERS[bot_sid]['name']
+                            }, namespace='/')
+                            
+                            from server_render import calculate_and_emit_results
+                            calculate_and_emit_results()
+
+                        socketio.start_background_task(bot_slot_play_runner, bot_id, win_prob)
+                    else:
+                        # For top 3, mark slot_done immediately as they don't play slots
+                        player['slot_done'] = True
                     
                     if finished_count >= len(PLAYERS):
                         # All finished
                         print(f"BOT: All {len(PLAYERS)} players finished - calculating results!")
-                        from server_render import on_calculate_results
-                        socketio.start_background_task(on_calculate_results)
+                        # Use calculate_and_emit_results instead of on_calculate_results to use new delay logic
+                        from server_render import calculate_and_emit_results
+                        socketio.start_background_task(calculate_and_emit_results)
                 
                 # Broadcast update
                 socketio.emit('player_update', {
                     'id': bot_id,
                     'progress': player['progress']
-                })
+                }, namespace='/')
 
 @app.route('/')
 def index():
@@ -143,6 +195,9 @@ def api_themes():
 @socketio.on('set_theme')
 def on_set_theme(data):
     """Set the current theme"""
+    if not is_controller(request.sid):
+        return
+
     theme_id = data.get('theme_id', DEFAULT_THEME)
     theme = get_theme(theme_id)
     GAME_STATE['theme'] = theme_id
@@ -150,13 +205,13 @@ def on_set_theme(data):
     print(f"[THEME] GAME_STATE['theme'] is now: {GAME_STATE['theme']}")
     
     # Broadcast theme change to all clients
-    emit('theme_changed', {
+    socketio.emit('theme_changed', {
         'theme_id': theme_id,
         'name': theme['name'],
         'track_background': theme.get('track_background'),
         'avatar_folder': theme.get('avatar_folder'),
         'avatar_prefix': theme.get('avatar_prefix', 'horse')
-    }, broadcast=True)
+    }, namespace='/')
 
 @socketio.on('get_theme')
 def on_get_theme():
@@ -199,13 +254,13 @@ def on_disconnect():
             # Mark as disconnected but don't remove - they can rejoin!
             player['disconnected'] = True
             # Notify host about disconnection
-            emit('player_disconnected', {
+            socketio.emit('player_disconnected', {
                 'player_id': request.sid,
                 'player_name': player['name']
-            }, broadcast=True)
+            }, namespace='/')
         else:
             del PLAYERS[request.sid]
-            emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+            socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
     print(f"Client disconnected: {request.sid}")
 
 @socketio.on('host_register')
@@ -267,50 +322,55 @@ def on_host_register():
             'status': GAME_STATE['status'],
             'total_prize': GAME_STATE.get('total_prize', 0),
             'players': [{'id': p['id'], 'name': p['name'], 'progress': p.get('progress', 0), 
-                'avatar_id': p.get('avatar_id', 'horse1'), 'finished': p.get('finished', False)}
+                        'avatar_id': p.get('avatar_id', 'horse1'), 'finished': p.get('finished', False)}
                        for p in PLAYERS.values()]
         })
 
 @socketio.on('host_takeover')
-def on_host_takeover(data=None):
-    """
-    Allow a viewer to forcefully take over as the main controller.
-    Requires password verification.
-    """
-    global HOST_CONTROL
-    
-    # Check password
-    password = data.get('password', '') if data else ''
-    correct_password = os.environ.get('HOST_PASSWORD', '8888')
-    
-    # Simple check - if password provided, must match. 
-    # If no password provided (legacy/dev), we might default to fail or existing behavior?
-    # Let's enforce password if data is sent.
-    
-    if password != correct_password:
-        emit('takeover_failed', {'reason': '密碼錯誤'}, to=request.sid)
-        return
+def on_host_takeover():
+    """Allow a viewer to take over as controller after timeout"""
+    import time
     
     sid = request.sid
     
-    old_controller = HOST_CONTROL['controller_sid']
-    HOST_CONTROL['controller_sid'] = sid
-    HOST_CONTROL['disconnect_time'] = None
-    
-    # Remove from viewers if present
-    if sid in HOST_CONTROL['viewers']:
-        HOST_CONTROL['viewers'].remove(sid)
-    
-    print(f"HOST takeover: {old_controller[:8] if old_controller else 'None'}... -> {sid[:8]}...")
-    
-    emit('host_status', {
-        'is_controller': True,
-        'message': '已成功接管控制權'
-    })
-    
-    # Notify all that new controller is active
-    socketio.emit('host_controller_online', {}, namespace='/')
-
+    # Check if current controller is offline long enough
+    if HOST_CONTROL['disconnect_time']:
+        elapsed = time.time() - HOST_CONTROL['disconnect_time']
+        if elapsed >= HOST_TAKEOVER_TIMEOUT:
+            # Takeover allowed
+            old_controller = HOST_CONTROL['controller_sid']
+            
+            # Remove from viewers if present
+            if sid in HOST_CONTROL['viewers']:
+                HOST_CONTROL['viewers'].remove(sid)
+            
+            # Become new controller
+            HOST_CONTROL['controller_sid'] = sid
+            HOST_CONTROL['disconnect_time'] = None
+            
+            print(f"HOST takeover: {old_controller[:8] if old_controller else 'None'}... -> {sid[:8]}...")
+            
+            emit('host_status', {
+                'is_controller': True,
+                'message': '已成功接管控制權'
+            })
+            
+            # Notify all that new controller is active
+            socketio.emit('host_controller_online', {}, namespace='/')
+        else:
+            remaining = int(HOST_TAKEOVER_TIMEOUT - elapsed)
+            emit('host_status', {
+                'is_controller': False,
+                'can_takeover': False,
+                'takeover_remaining': remaining,
+                'message': f'需再等待 {remaining} 秒才能接管'
+            })
+    else:
+        emit('host_status', {
+            'is_controller': False,
+            'can_takeover': False,
+            'message': '目前控制者仍在線上'
+        })
 
 @socketio.on('rejoin_waiting')
 def on_rejoin_waiting(data):
@@ -350,12 +410,12 @@ def on_rejoin_waiting(data):
     
     emit('rejoin_waiting_success', {'id': new_id, 'avatar_id': old_player.get('avatar_id', 'horse1')}, room=new_id)
     # Notify host about reconnection - send old_id so host can find the element
-    emit('player_reconnected', {
+    socketio.emit('player_reconnected', {
         'player_id': new_id,
         'old_player_id': old_id,
         'player_name': name
-    }, broadcast=True)
-    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+    }, namespace='/')
+    socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 @socketio.on('join_game')
 def on_join(data):
@@ -402,12 +462,12 @@ def on_join(data):
             
             emit('join_success', {'id': new_id, 'name': name}, room=new_id)
             # Notify host about reconnection
-            emit('player_reconnected', {
+            socketio.emit('player_reconnected', {
                 'player_id': new_id,
                 'old_player_id': existing_pid,
                 'player_name': name
-            }, broadcast=True)
-            emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+            }, namespace='/')
+            socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
             return
         else:
             # Different device, add suffix
@@ -432,7 +492,7 @@ def on_join(data):
         'dodge_until': 0  # Timestamp when dodge expires
     }
     emit('join_success', {'id': request.sid, 'name': name}, room=request.sid)
-    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+    socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 @socketio.on('rejoin_game')
 def on_rejoin(data):
@@ -482,16 +542,19 @@ def on_rejoin(data):
     
     emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
     # Notify host about reconnection - IMPORTANT: send old_id so host can find the element
-    emit('player_reconnected', {
+    socketio.emit('player_reconnected', {
         'player_id': new_id,
         'old_player_id': old_id,  # Add old ID so host can find the disconnected horse element
         'player_name': name
-    }, broadcast=True)
-    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+    }, namespace='/')
+    socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 @socketio.on('add_bots')
 def on_add_bots(data):
     """Add bot players for testing"""
+    if not is_controller(request.sid):
+        return
+
     if GAME_STATE['status'] != 'WAITING':
         return
     
@@ -518,7 +581,7 @@ def on_add_bots(data):
         BOT_PLAYERS.append(bot_id)
         print(f"Bot added: {name} ({bot_id})")
     
-    emit('update_player_list', list(PLAYERS.values()), broadcast=True)
+    socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 @socketio.on('start_race')
 def on_start_race(data):
@@ -554,9 +617,12 @@ def on_start_race(data):
         GAME_STATE['lucky_max_winners'] = 3
         
     GAME_STATE['status'] = 'RACING'
-    # Set race start time (after 4 second countdown)
+    GAME_STATE['race_ended_flag'] = False # Reset flag
+    
+    # Set race start time
     import time
-    GAME_STATE['race_start_time'] = time.time() + 4  # 4 seconds countdown
+    countdown_duration = 1 if GAME_STATE.get('debug_mode') else 4
+    GAME_STATE['race_start_time'] = time.time() + countdown_duration
     
     # Reset progress and items
     ITEMS.clear()
@@ -566,6 +632,7 @@ def on_start_race(data):
         PLAYERS[pid]['speed'] = 0
         PLAYERS[pid]['finished'] = False
         PLAYERS[pid]['finish_order'] = 0
+        PLAYERS[pid]['slot_done'] = False # Reset slot status
     
     # Start quiz spawning (will wait for countdown to finish)
     socketio.start_background_task(quiz_spawner)
@@ -577,7 +644,11 @@ def on_start_race(data):
         print(f"Bot runner started for {len(BOT_PLAYERS)} bots!")
     
     # Check if we need to emit prizes to client? No, only results.
-    emit('race_started', {'total_prize': GAME_STATE['total_prize']}, broadcast=True)
+    # START SIGNAL: Send countdown duration so client knows when to run
+    socketio.emit('race_started', {
+        'total_prize': GAME_STATE['total_prize'],
+        'countdown': countdown_duration
+    }, namespace='/')
     
     # Start race timer for auto-end and progress sync
     socketio.start_background_task(race_timer)
@@ -586,6 +657,48 @@ def on_start_race(data):
 # Maximum race time in seconds (10 minutes)
 MAX_RACE_TIME = 600
 
+# Debug Mode State
+GAME_STATE['debug_mode'] = False
+
+def is_controller(sid):
+    return HOST_CONTROL['controller_sid'] == sid
+
+@socketio.on('host_surrender_control')
+def on_host_surrender_control():
+    """Allow controller to voluntarily become a viewer"""
+    sid = request.sid
+    if is_controller(sid):
+        print(f"HOST surrendered control: {sid[:8]}...")
+        HOST_CONTROL['controller_sid'] = None
+        HOST_CONTROL['disconnect_time'] = None # No timeout needed, explicit surrender
+        if sid not in HOST_CONTROL['viewers']:
+            HOST_CONTROL['viewers'].append(sid)
+            
+        emit('host_status', {
+            'is_controller': False,
+            'message': '您已切換為觀看者模式'
+        })
+        # Notify potentially other viewers they can take over? 
+        # Or just leave it open for next connection or takeover claim.
+
+@socketio.on('enable_debug_mode')
+def on_enable_debug_mode():
+    if not is_controller(request.sid):
+        return
+    GAME_STATE['debug_mode'] = True
+    print("DEBUG MODE ENABLED: 20x Speed, 1s Start, Fast Slots")
+    socketio.emit('debug_mode_enabled', {}, namespace='/')
+
+@socketio.on('disable_debug_mode')
+def on_disable_debug_mode():
+    if not is_controller(request.sid):
+        return
+    GAME_STATE['debug_mode'] = False
+    print("DEBUG MODE DISABLED: Reverting to normal speed")
+    # Optional: emit event to remove badge if we want live update
+    # emit('debug_mode_disabled', broadcast=True)
+
+    
 def race_timer():
     """Background task to handle max race time and progress sync"""
     import time
@@ -620,13 +733,30 @@ def race_timer():
         active_players = [p for p in PLAYERS.values() if not p.get('is_bot', False)]
         all_finished = all(p.get('finished', False) for p in active_players) if active_players else False
         
+        # Also check if bots finished (if debug mode or just generally good practice)
+        # Simply rely on finished_count logic in on_shake/bot_runner mostly, but this serves as a timeout backup.
+        # But wait, original logic was: "All players finished! Auto-calculating results..."
+        # If we just auto-calculate results here, we bypass the slot wait check!
+        # Fix: Invoke calculate_and_emit_results which now has the wait check inside.
+        
         if all_finished:
-            print("All players finished! Auto-calculating results...")
-            socketio.emit('race_auto_end', {'reason': 'all_finished'}, namespace='/')
-            # Wait a moment for clients to process
-            eventlet.sleep(2)
-            calculate_and_emit_results()
-            break
+            # We only emit 'race_auto_end' if we are actually ENDING.
+            # But we might be waiting for slots.
+            # Let's change race_auto_end to be purely visual "Race Over" (flags etc), 
+            # while the actual RESULTS screen waits for slots.
+            
+            # Check if we already triggered end sequence to avoid spam
+            if not GAME_STATE.get('race_ended_flag'):
+                 print("All players finished! triggering race end sequence...")
+                 GAME_STATE['race_ended_flag'] = True
+                 socketio.emit('race_auto_end', {'reason': 'all_finished'}, namespace='/')
+                 # Trigger result calculation check
+                 eventlet.sleep(2)
+                 calculate_and_emit_results()
+            
+            # We don't break loop immediately if waiting for slots?
+            # Actually, race status stays RACING until results are emitted.
+            # So duplicate checks are blocked by race_ended_flag.
         
         # Check max time
         if elapsed >= MAX_RACE_TIME:
@@ -939,108 +1069,58 @@ def on_quiz_timeout(data):
     }, namespace='/')
 
 
-@socketio.on('slot_spin_start')
-def on_slot_spin_start(data):
-    """
-    Handle slot machine spin request.
-    Determine the result server-side with locking to prevent over-awarding lucky prizes.
-    """
-    sid = request.sid
-    if sid not in PLAYERS:
+@socketio.on('slot_result')
+def on_slot_result(data):
+    """Handle the slot machine result from client"""
+    if GAME_STATE['status'] != 'RACING':
         return
-
-    player = PLAYERS[sid]
     
-    # Simple probability for winning
-    # 30% chance to win IF spots are available
-    WIN_CHANCE = 0.3
-    lucky_prize = GAME_STATE.get('lucky_prize', 0)
-    max_winners = GAME_STATE.get('lucky_max_winners', 3)
+    player_id = request.sid
+    if player_id not in PLAYERS:
+        return
     
-    result_type = 'lose'
-    win_amount = 200 # Consolation prize
+    player = PLAYERS[player_id]
+    is_winner = data.get('won', False)
     
-    with SLOT_LOCK:
-        winners_count = GAME_STATE.get('lucky_winners_count', 0)
-        
-        # Check if they can win
-        if winners_count < max_winners:
-            # Roll the dice
-            if random.random() < WIN_CHANCE:
-                result_type = 'win'
-                win_amount = lucky_prize
-                GAME_STATE['lucky_winners_count'] = winners_count + 1
-            else:
-                # 30% chance of "Near Miss" if they lost but spots were open
-                if random.random() < 0.3:
-                    result_type = 'near-miss'
-                    
-        # Store result in player temporarily
-        PLAYERS[sid]['pending_slot_result'] = {
-            'type': result_type,
-            'amount': win_amount
-        }
-        
-    # Generate stop indices for the client animation
-    # 0=Horse (Win), 1=Coin, 2=Bag
-    # Win: [0, 0, 0]
-    # Near Miss: [0, 0, 1] (or similar)
-    # Lose: [0, 1, 2] (random mismatch)
-    
-    stops = [0, 0, 0]
-    if result_type == 'win':
-        stops = [0, 0, 0]
-    elif result_type == 'near-miss':
-        stops = [0, 0, 1] 
+    # Determine prize
+    if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
+        # Lucky winner!
+        GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
+        prize = GAME_STATE.get('lucky_prize', 500)
+        player['slot_prize'] = prize
+        print(f"Player {player['name']} WON lucky prize! ({GAME_STATE['lucky_winners_count']}/{GAME_STATE['lucky_max_winners']})")
     else:
-        # Random loser combo
-        stops = [random.choice([0,1,2]), random.choice([0,1,2]), random.choice([0,1,2])]
-        # Ensure it's not a winner [0,0,0]
-        while stops == [0, 0, 0]:
-             stops = [random.choice([0,1,2]), random.choice([0,1,2]), random.choice([0,1,2])]
-
-    emit('slot_spin_result', {
-        'result_type': result_type,
-        'stops': stops,
-        'amount': win_amount
-    })
-
-@socketio.on('slot_animation_complete')
-def on_slot_animation_complete(data):
-    """
-    Client confirms animation is done. 
-    Finalize the prize and broadcast result if needed.
-    """
-    sid = request.sid
-    if sid not in PLAYERS:
-        return
-        
-    player = PLAYERS[sid]
-    pending = player.get('pending_slot_result')
+        # Not a winner or slots full - consolation prize
+        prize = 200
+        player['slot_prize'] = prize
+        print(f"Player {player['name']} got consolation prize: {prize}")
     
-    if not pending:
-        # Should not happen ideally
-        return
-        
-    # Commit the prize
-    player['slot_prize'] = pending['amount']
+    # Send result back to player
+    player['slot_done'] = True
+    socketio.emit('slot_result_final', {
+        'won': is_winner and GAME_STATE.get('lucky_winners_count', 0) <= GAME_STATE.get('lucky_max_winners', 3),
+        'prize': prize,
+        'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+        'player_id': player_id,
+        'player_name': player['name']
+    }, namespace='/')
     
-    # Send result back to player to show popup
-    emit('slot_result_final', {
-        'isWin': pending['type'] == 'win',
-        'amount': pending['amount']
-    })
-
-    # Broadcast to host if they won big
-    if pending['type'] == 'win':
-         emit('host_slot_winner', {
-            'player_name': player['name'],
-            'amount': pending['amount'],
-            'winners_count': GAME_STATE.get('lucky_winners_count', 0),
-            'max_winners': GAME_STATE.get('lucky_max_winners', 3)
-        }, broadcast=True)
-         
-    # Update global results immediately so leaderboard refreshes
+    # If all prizes are now claimed, notify all players who might still have slot open
+    if GAME_STATE.get('lucky_winners_count', 0) >= GAME_STATE.get('lucky_max_winners', 3):
+        # Find all players who finished > 3rd but haven't completed slot
+        for pid, p in PLAYERS.items():
+            if p.get('finish_order', 0) > 3 and not p.get('slot_done'):
+                # Auto-assign participation prize to them
+                p['slot_prize'] = 200
+                p['slot_done'] = True
+                print(f"[SLOT EXHAUSTED] Auto-assigning $200 to {p['name']}")
+                socketio.emit('slot_prizes_exhausted', {
+                    'prize': 200,
+                    'player_id': pid,
+                    'player_name': p['name']
+                }, namespace='/')
+    
+    # Re-check if we can show results now
     calculate_and_emit_results()
 
 
@@ -1097,7 +1177,12 @@ def on_shake(data):
     speed_multiplier = get_speed_multiplier(request.sid)
     move_amount *= speed_multiplier
     
+    MAX_PROGRESS_PER_SHAKE = 5.0
     PLAYERS[request.sid]['progress'] += move_amount
+    
+    # Debug Mode 20x Speed
+    if GAME_STATE.get('debug_mode'):
+        PLAYERS[request.sid]['progress'] += move_amount * 19 # Total 20x
     
     if PLAYERS[request.sid]['progress'] >= 100:
         PLAYERS[request.sid]['progress'] = 100
@@ -1108,23 +1193,107 @@ def on_shake(data):
         PLAYERS[request.sid]['finish_order'] = finished_count
         
         # Broadcast player finished event with rank
-        emit('player_finished', {
+        socketio.emit('player_finished', {
             'player_id': request.sid,
             'player_name': PLAYERS[request.sid]['name'],
             'rank': finished_count
-        }, broadcast=True)
+        }, namespace='/')
         
         # Trigger slot machine for players finishing 4th or later
         if finished_count > 3:
             current_theme = GAME_STATE.get('theme', 'hashimae')
             theme = get_theme(current_theme)
-            emit('slot_machine_trigger', {
-                'rank': finished_count,
-                'lucky_prize': GAME_STATE.get('lucky_prize', 500),
-                'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
-                'avatar_folder': theme.get('avatar_folder', ''),
-                'avatar_prefix': theme.get('avatar_prefix', 'horse')
-            }, room=request.sid)
+            
+            # Dynamic Probability Calculation
+            # Formula: Remaining Lucky Slots / Remaining Candidates
+            # Remaining Candidates = (Total Players - Rank) + 1  (Self is included in candidates)
+            lucky_slots_remaining = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
+            total_players = len(PLAYERS)
+            remaining_candidates = max(1, total_players - finished_count + 1)
+            
+            win_prob = 0
+            if lucky_slots_remaining > 0:
+                win_prob = min(1.0, lucky_slots_remaining / remaining_candidates)
+            
+            print(f"[SLOT PROB] Player {PLAYERS[request.sid]['name']} (Rank {finished_count}) - Prob: {win_prob:.2f} ({lucky_slots_remaining}/{remaining_candidates})")
+            
+            # If no prizes left, skip slot machine entirely and auto-assign participation prize
+            if lucky_slots_remaining <= 0:
+                print(f"[SLOT SKIP] No lucky prizes left, giving participation prize to {PLAYERS[request.sid]['name']}")
+                PLAYERS[request.sid]['slot_prize'] = 200
+                PLAYERS[request.sid]['slot_done'] = True
+                socketio.emit('slot_result_final', {
+                    'won': False,
+                    'prize': 200,
+                    'lucky_slots_remaining': 0,
+                    'player_id': request.sid,
+                    'player_name': PLAYERS[request.sid]['name'],
+                    'skipped': True  # Flag to indicate slot was skipped
+                }, namespace='/')
+                # Check if all finished
+                calculate_and_emit_results()
+            else:
+                emit('slot_machine_trigger', {
+                    'rank': finished_count,
+                    'lucky_prize': GAME_STATE.get('lucky_prize', 500),
+                    'lucky_slots_remaining': lucky_slots_remaining,
+                    'win_probability': win_prob,
+                    'avatar_folder': theme.get('avatar_folder', ''),
+                    'avatar_prefix': theme.get('avatar_prefix', 'horse')
+                }, room=request.sid)
+
+            # Auto-play slots for BOTS
+            if PLAYERS[request.sid].get('is_bot'):
+                print(f"Bot {PLAYERS[request.sid]['name']} finished > 3rd, auto-playing slots...")
+                def bot_slot_play(bot_sid):
+                    import eventlet
+                    # Debug Mode: 1s slot wait, Normal: 5s
+                    wait_time = 1 if GAME_STATE.get('debug_mode') else 5
+                    eventlet.sleep(wait_time)
+                    
+                    # New Logic: Use calculated probability
+                    # Recalculate or use passed? Better to recalculate or pass it in. 
+                    # Assuming bot_slot_play captures the scope of win_prob from outer on_shake is risky if it's spawned?
+                    # Actually `win_prob` is local variable above. We should pass it.
+                    # Simplified: Re-check slots state (race condition safe?)
+                    # Let's trust the probability calculated at finish moment for fairness? 
+                    # OR check current state? "First come first serve" usually applies to who FINISHES first.
+                    # So using the win_prob calculated at finish is fairer.
+                    
+                    # BUT wait. `bot_slot_play` is defined inside `on_shake` scope. 
+                    # Python closures capture variables! So we can use `win_prob` from above.
+                    
+                    import random
+                    is_winner = random.random() < win_prob
+                    
+                    prize = 200
+                    if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
+                         # Double check limits to be safe from race conditions
+                         GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
+                         prize = GAME_STATE.get('lucky_prize', 500)
+                         print(f"Bot {PLAYERS[bot_sid]['name']} WON lucky prize! (Prob: {win_prob:.2f})")
+                    else:
+                         print(f"Bot {PLAYERS[bot_sid]['name']} lost slot. (Prob: {win_prob:.2f})")
+
+                    PLAYERS[bot_sid]['slot_prize'] = prize
+                    
+                    # Mark slot as done
+                    PLAYERS[bot_sid]['slot_done'] = True
+                    
+                    socketio.emit('slot_result_final', {
+                        'won': is_winner,
+                        'prize': prize,
+                        'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+                        'player_id': bot_sid,
+                        'player_name': PLAYERS[bot_sid]['name']
+                    }, namespace='/')
+                    
+                    # Be polite and trigger result check (though bot runs in background thread)
+                    # Since this is a thread, we might need to be careful calling calculate directly if it uses shared state?
+                    # It's fine in eventlet usually (cooperative).
+                    calculate_and_emit_results()
+
+                socketio.start_background_task(bot_slot_play, request.sid)
         
         # Check if ALL finished
         total_players = len(PLAYERS)
@@ -1133,10 +1302,10 @@ def on_shake(data):
             print(f"All {total_players} players finished - calculating results!")
             on_calculate_results()
     
-    emit('player_update', {
+    socketio.emit('player_update', {
         'id': request.sid, 
         'progress': PLAYERS[request.sid]['progress']
-    }, broadcast=True)
+    }, namespace='/')
 
 @socketio.on('game_completed')
 def on_game_completed(data):
@@ -1239,6 +1408,51 @@ def calculate_and_emit_results():
     results = []
     
     if n > 0:
+        print(f"[CALC_RESULTS] Starting calculation for {n} players...")
+        print(f"[CALC_RESULTS] Lucky Winners: {GAME_STATE.get('lucky_winners_count', 0)}/{GAME_STATE.get('lucky_max_winners', 3)}")
+        
+        # RESULT DELAY LOGIC:
+        # Check if any players are waiting for slots (rank > 3 and finished)
+        # FORCE END CHECK: If all lucky prizes are taken, we should end the game even if people are racing
+        lucky_full = GAME_STATE.get('lucky_winners_count', 0) >= GAME_STATE.get('lucky_max_winners', 3)
+        
+        if lucky_full:
+            # Force finish everyone who isn't finished or slot_done
+            for p in sorted_players:
+                if not p.get('finished'):
+                    print(f"[FORCE END] Force finishing player {p['name']} (Progress: {p['progress']:.1f}%)")
+                    p['finished'] = True
+                    p['finish_order'] = 999 # Rank them last
+                    p['slot_done'] = True
+                    p['slot_prize'] = 200
+                elif p.get('finish_order', 0) > 3 and not p.get('slot_done'):
+                    p['slot_done'] = True
+                    p['slot_prize'] = 200
+            
+            # Re-sort because we modified finished status
+            sorted_players = sorted(PLAYERS.values(), key=lambda x: (
+                1 if x.get('finished') else 0,
+                -x.get('finish_order', 999) if x.get('finished') else 0,
+                x['progress']
+            ), reverse=True)
+            
+            waiting_for_slots = False # No more waiting
+            
+        else:
+            # Normal waiting logic
+            waiting_for_slots = False
+            for p in sorted_players:
+                if p.get('finished') and p.get('finish_order', 0) > 3:
+                     if not p.get('slot_done', False):
+                        waiting_for_slots = True
+                        break
+        
+        if waiting_for_slots:
+            print(f"[CALC_RESULTS] Waiting for slots! (LUCKY_FULL={lucky_full})")
+            return # Do not emit game_results yet
+        else:
+            print("[CALC_RESULTS] Logic says PROCEED to results.")
+            
         if GAME_STATE.get('top3_prizes'):
             # Use custom top 3 prizes, rest get 100 each
             top3 = GAME_STATE['top3_prizes']
@@ -1251,7 +1465,7 @@ def calculate_and_emit_results():
                 elif i == 2:
                     amounts.append(top3[2])
                 else:
-                    amounts.append(600)  # Fixed amount for non-top-3
+                    amounts.append(200)  # Fixed amount for non-top-3
         elif GAME_STATE.get('manual_prizes'):
              amounts = GAME_STATE['manual_prizes']
              # Ensure length matches or fill 0 / truncate
@@ -1268,15 +1482,11 @@ def calculate_and_emit_results():
             
             # If player won a slot prize (lucky prize or consolation), override the default prize
             # Only for rank > 3 (since top 3 get special prizes)
-            if i >= 3:
-                if player.get('slot_prize'):
-                    prize = player['slot_prize']
-                else:
-                    # Player hasn't played slots yet (or is playing), send special value
-                    # We use -1 to indicate "Pending"
-                    prize = -1
+            if i >= 3 and player.get('slot_prize'):
+                prize = player['slot_prize']
                 
             results.append({
+                'player_id': player['id'],
                 'name': player['name'],
                 'rank': i + 1,
                 'prize': prize,
@@ -1284,8 +1494,14 @@ def calculate_and_emit_results():
             })
             
     socketio.emit('game_results', results, namespace='/')
+    
+    # Explicitly stop all background tasks
     GAME_STATE['status'] = 'FINISHED'
-    print(f"Game results emitted for {n} players")
+    TASK_FLAGS['quiz_running'] = False
+    TASK_FLAGS['race_timer_running'] = False
+    TASK_FLAGS['bot_running'] = False
+    
+    print(f"Game results emitted for {n} players. Status set to FINISHED.")
 
 @socketio.on('calculate_results')
 def on_calculate_results():
@@ -1293,6 +1509,10 @@ def on_calculate_results():
 
 @socketio.on('reset_game')
 def on_reset():
+    if not is_controller(request.sid):
+        print(f"Unauthorized reset_game attempt from {request.sid}")
+        return
+
     # Stop all background tasks
     TASK_FLAGS['quiz_running'] = False
     TASK_FLAGS['race_timer_running'] = False
@@ -1300,16 +1520,27 @@ def on_reset():
     
     # Reset game state
     GAME_STATE['status'] = 'WAITING'
+    GAME_STATE['debug_mode'] = False  # Disable debug mode on reset
+    GAME_STATE['lucky_winners_count'] = 0 # Reset lucky winners
+    GAME_STATE['race_start_time'] = 0
+    # Preserve theme, but maybe reset prizes if they were custom? 
+    # Usually prizes are re-set on start_race, so it's fine.
+    
     PLAYERS.clear()
     BOT_PLAYERS.clear()
+    ACTIVE_EFFECTS.clear()
+    ITEMS.clear()
     
     # Clear tracking data to prevent memory leaks
     RATE_LIMIT.clear()
     PLAYER_LAST_ACTIVE.clear()
     PLAYER_QUESTIONS.clear()
     
-    print("Game reset: All tasks stopped, data cleared")
-    emit('reset_game_client', broadcast=True)
+    print("Game reset - State cleared")
+    
+    # Broadcast reset to all clients (will reload page)
+    # Using namespace='/' ensures everyone gets it
+    socketio.emit('reset_game_client', {}, namespace='/')
 
 if __name__ == '__main__':
     # Render會提供PORT環境變數
