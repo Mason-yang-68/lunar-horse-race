@@ -12,6 +12,11 @@ window.initSlotMachine = function (socket) {
 
     // Listener for final result
     socket.on('slot_result_final', (data) => {
+        // [FIX] 忽略非本人的抽獎結果，避免提前顯示他人金額
+        if (typeof myId !== 'undefined' && data.player_id !== myId) {
+            return;
+        }
+
         const msgEl = document.getElementById('slot-message');
         if (msgEl) {
             if (data.won) {
