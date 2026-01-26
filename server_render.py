@@ -45,9 +45,8 @@ RATE_LIMIT = {
 RATE_LIMIT_INTERVAL = 0.05  # Minimum 50ms between shakes (20 per second max)
 
 # Player timeout tracking for memory cleanup
-# Player disconnect tracking for cleanup
-PLAYER_DISCONNECT_TIME = {
-    # sid: disconnect_timestamp
+PLAYER_LAST_ACTIVE = {
+    # sid: last_active_timestamp
 }
 CLEANUP_TIMEOUT_WAITING = 600  # 10 minutes for waiting room (relaxed)
 CLEANUP_TIMEOUT_RACING = 300   # 5 minutes for racing (strict, avoid ghosts affecting stats)
@@ -64,22 +63,26 @@ def cleanup_inactive_players():
         timeout = CLEANUP_TIMEOUT_RACING if status == 'RACING' else CLEANUP_TIMEOUT_WAITING
         
         to_remove = []
-        to_remove = []
-        for sid, disconnect_time in list(PLAYER_DISCONNECT_TIME.items()):
-            if current_time - disconnect_time > timeout:
+        for sid, last_active in list(PLAYER_LAST_ACTIVE.items()):
+            if current_time - last_active > timeout:
                 if sid in PLAYERS:
                     player = PLAYERS[sid]
-                    # Don't remove if finished (need record for results)
-                    if not player.get('finished'):
-                        to_remove.append(sid)
+                    # Only remove if actually disconnected
+                    if player.get('disconnected'):
+                        # Don't remove if finished (need record for results)
+                        if not player.get('finished'):
+                             to_remove.append(sid)
+                    elif current_time - last_active > 3600:
+                         # Failsafe: Remove connected but VERY idle players (e.g. 1 hour)
+                         # to prevent memory leaks from stuck connections
+                         to_remove.append(sid)
         
         for sid in to_remove:
             if sid in PLAYERS:
                 name = PLAYERS[sid]['name']
                 print(f"[CLEANUP] Removing inactive player: {name} ({sid})")
                 del PLAYERS[sid]
-                if sid in PLAYER_DISCONNECT_TIME:
-                    del PLAYER_DISCONNECT_TIME[sid]
+                del PLAYER_LAST_ACTIVE[sid]
                 socketio.emit('player_disconnected', {'player_id': sid, 'player_name': name}, namespace='/')
                 socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
@@ -288,7 +291,6 @@ def on_disconnect():
             print(f"Client disconnected but keeping player for rejoin: {player['name']}")
             # Mark as disconnected but don't remove - they can rejoin!
             player['disconnected'] = True
-            PLAYER_DISCONNECT_TIME[request.sid] = time.time()
             # Notify host about disconnection
             socketio.emit('player_disconnected', {
                 'player_id': request.sid,
@@ -429,17 +431,27 @@ def on_rejoin_waiting(data):
             old_id = pid
             break
     
+    if not old_player:
         emit('rejoin_waiting_failed', {'message': '找不到玩家'})
         return
     
-    # Validate Rejoin Token for Waiting Room
+    # Validate race_id
+    client_race_id = data.get('race_id')
+    server_race_id = GAME_STATE.get('race_id')
+    
+    if str(client_race_id) != str(server_race_id):
+        print(f"Rejoin waiting failed for {name}: Race ID mismatch")
+        emit('rejoin_waiting_failed', {'message': '賽事 ID 不符，請重新整理'})
+        return
+
+    # Phase 3: Token Validation
     client_token = data.get('token')
     server_token = old_player.get('token')
-    if server_token:
-        if client_token != server_token:
-             emit('rejoin_waiting_failed', {'message': '身份驗證失敗'})
-             return
-    
+    if server_token and client_token != server_token:
+        print(f"Rejoin waiting failed for {name}: Invalid Token")
+        emit('rejoin_waiting_failed', {'message': '驗證失效，無法接回'})
+        return
+
     # Transfer player data to new session
     new_id = request.sid
     old_player['id'] = new_id
@@ -451,7 +463,7 @@ def on_rejoin_waiting(data):
         del PLAYERS[old_id]
         print(f"Player {name} rejoined waiting: {old_id[:8]}... -> {new_id[:8]}...")
     
-    emit('rejoin_waiting_success', {'id': new_id, 'avatar_id': old_player.get('avatar_id', 'horse1')}, room=new_id)
+    emit('rejoin_waiting_success', {'id': new_id, 'avatar_id': old_player.get('avatar_id', 'horse1'), 'race_id': server_race_id}, room=new_id)
     # Notify host about reconnection - send old_id so host can find the element
     socketio.emit('player_reconnected', {
         'player_id': new_id,
@@ -495,14 +507,6 @@ def on_join(data):
             # Same device! This is a VALID reconnection
             print(f"Player {name} reconnecting with same device_id, taking over slot")
             new_id = request.sid
-            
-            # Persist existing token
-            token = existing_player.get('token')
-            if not token:
-                import uuid
-                token = uuid.uuid4().hex
-                existing_player['token'] = token
-                
             existing_player['id'] = new_id
             existing_player['disconnected'] = False
             existing_player['avatar_id'] = avatar_id  # Update avatar if changed
@@ -511,16 +515,14 @@ def on_join(data):
             if existing_pid != new_id:
                 PLAYERS[new_id] = existing_player
                 del PLAYERS[existing_pid]
-                if existing_pid in PLAYER_DISCONNECT_TIME:
-                     del PLAYER_DISCONNECT_TIME[existing_pid] # Clear disconnect time logic
+                if existing_pid in PLAYER_LAST_ACTIVE:
+                     del PLAYER_LAST_ACTIVE[existing_pid]
+                PLAYER_LAST_ACTIVE[new_id] = os.times().elapsed # Init active time/ use time.time()
+                import time
+                PLAYER_LAST_ACTIVE[new_id] = time.time()
 
             
-            emit('join_success', {
-                'id': new_id, 
-                'name': name, 
-                'race_id': GAME_STATE['race_id'],
-                'token': token
-            }, room=new_id)
+            emit('join_success', {'id': new_id, 'name': name, 'race_id': GAME_STATE['race_id']}, room=new_id)
             # Notify host about reconnection
             socketio.emit('player_reconnected', {
                 'player_id': new_id,
@@ -543,35 +545,32 @@ def on_join(data):
             # Notify player about name change
             emit('name_changed', {'original': data.get('name'), 'new': name})
     
+    # Generate Rejoin Token
+    import uuid
+    rejoin_token = uuid.uuid4().hex
+    
     PLAYERS[request.sid] = {
         'id': request.sid,
         'name': name,
         'avatar_id': avatar_id,
         'device_id': device_id,  # Store device ID
+        'token': rejoin_token,   # Store Rejoin Token
         'progress': 0,
         'speed': 0,
         'finished': False,
         'dodge_until': 0  # Timestamp when dodge expires
     }
-    # Generate Rejoin Token
-    import uuid
-    rejoin_token = uuid.uuid4().hex
-    PLAYERS[request.sid]['token'] = rejoin_token
-    
-    # No need to set timer for connected players
-    # PLAYER_DISCONNECT_TIME only tracks disconnected ones
-    emit('join_success', {
-        'id': request.sid, 
-        'name': name, 
-        'race_id': GAME_STATE['race_id'],
-        'token': rejoin_token
-    }, room=request.sid)
+    import time
+    PLAYER_LAST_ACTIVE[request.sid] = time.time()
+    # Send token to client
+    emit('join_success', {'id': request.sid, 'name': name, 'race_id': GAME_STATE['race_id'], 'token': rejoin_token}, room=request.sid)
     socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 @socketio.on('rejoin_game')
 def on_rejoin(data):
     """Handle player reconnection during racing"""
-    if GAME_STATE['status'] != 'RACING':
+    # Allow rejoining if RACING or FINISHED (so they can see results)
+    if GAME_STATE['status'] not in ['RACING', 'FINISHED']:
         emit('rejoin_failed', {'message': '遊戲未進行中'})
         return
     
@@ -598,26 +597,26 @@ def on_rejoin(data):
     client_race_id = data.get('race_id')
     server_race_id = GAME_STATE.get('race_id')
     
-    if client_race_id and client_race_id != server_race_id:
+    # Strict check: Must match exactly
+    if str(client_race_id) != str(server_race_id):
         print(f"Rejoin failed for {name}: Race ID mismatch (Client: {client_race_id}, Server: {server_race_id})")
-        emit('rejoin_failed', {'message': '賽事 ID 不符，請重新登入'})
+        emit('rejoin_failed', {'message': '賽事 ID 不符，無法接回比賽'})
         return
 
-    # Validate Rejoin Token if server has it
+    # Strict: verify device_id matches
+    if device_id and old_player.get('device_id') and device_id != old_player.get('device_id'):
+         print(f"Rejoin failed for {name}: Device ID mismatch")
+         emit('rejoin_failed', {'message': '裝置 ID 不符，無法接管'})
+         return
+    
+    # Phase 3: Token Validation
     client_token = data.get('token')
     server_token = old_player.get('token')
-    
     if server_token:
-        # If server thinks player has a token, client MUST provide it
-        if client_token != server_token:
-             print(f"Rejoin failed for {name}: Token mismatch")
-             emit('rejoin_failed', {'message': '身份驗證失敗 (Token mismatch)'})
-             return
-    else:
-        # Legacy/Fallback: verify device_id matches
-        if device_id and old_player.get('device_id') and device_id != old_player.get('device_id'):
-             print(f"Rejoin failed for {name}: Device ID mismatch")
-             emit('rejoin_failed', {'message': '裝置 ID 不符，無法接管'})
+        # If server has a token, client MUST provide it
+        if not client_token or client_token != server_token:
+             print(f"Rejoin failed for {name}: Invalid Token")
+             emit('rejoin_failed', {'message': '驗證失效，無法接管 (Token Mismatch)'})
              return
     
     # Transfer player data to new session
@@ -636,21 +635,16 @@ def on_rejoin(data):
         del PLAYERS[old_id]
         print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}... (states cleared)")
     
-    import time
     emit('rejoin_success', {
         'id': new_id, 
         'progress': old_player['progress'],
         'race_id': server_race_id,
         'status': GAME_STATE['status'],
-        'finished': old_player.get('finished', False),
-        'finish_order': old_player.get('finish_order', 0),
-        'race_start_time': GAME_STATE.get('race_start_time', 0),
-        'server_time': time.time()
+        'race_start_time': GAME_STATE.get('race_start_time', 0)
     }, room=new_id)
 
     import time
-    if new_id in PLAYER_DISCONNECT_TIME:
-        del PLAYER_DISCONNECT_TIME[new_id]
+    PLAYER_LAST_ACTIVE[new_id] = time.time()
     # Notify host about reconnection - IMPORTANT: send old_id so host can find the element
     socketio.emit('player_reconnected', {
         'player_id': new_id,
@@ -729,11 +723,6 @@ def on_start_race(data):
     GAME_STATE['status'] = 'RACING'
     GAME_STATE['race_ended_flag'] = False # Reset flag
     
-    # Generate NEW race_id for this specific race instance
-    import uuid
-    GAME_STATE['race_id'] = uuid.uuid4().hex[:8]
-    print(f"[RACE] Race started with ID: {GAME_STATE['race_id']}")
-    
     # Set race start time
     import time
     countdown_duration = 1 if GAME_STATE.get('debug_mode') else 4
@@ -759,16 +748,22 @@ def on_start_race(data):
         print(f"Bot runner started for {len(BOT_PLAYERS)} bots!")
     
     # Check if we need to emit prizes to client? No, only results.
+    # Start race timer for auto-end and progress sync
+    socketio.start_background_task(race_timer)
+    print("Race timer started!")
+
+    # Generate NEW race_id for this specific run
+    import uuid
+    new_race_id = uuid.uuid4().hex[:8]
+    GAME_STATE['race_id'] = new_race_id
+    print(f"Race Started! New Race ID: {new_race_id}")
+
     # START SIGNAL: Send countdown duration so client knows when to run
     socketio.emit('race_started', {
         'total_prize': GAME_STATE['total_prize'],
         'countdown': countdown_duration,
-        'race_id': GAME_STATE['race_id']
+        'race_id': new_race_id
     }, namespace='/')
-    
-    # Start race timer for auto-end and progress sync
-    socketio.start_background_task(race_timer)
-    print("Race timer started!")
 
 # Maximum race time in seconds (10 minutes)
 MAX_RACE_TIME = 600
