@@ -463,6 +463,7 @@
         let myToken = null; // Rejoin Token
         let isRacing = false;
         let isWaiting = false;  // Track waiting state for reconnection
+        let isListening = false; // Track if motion listener is active
         let disconnectOverlay = null;
 
         // Restore state on page load (before socket connect triggers)
@@ -654,6 +655,9 @@
             isRacing = false;
             saveGameState();
 
+            // Ensure motion listener is active
+            startListening();
+
             // Show success message
             const msg = document.createElement('div');
             msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,128,0,0.9);color:white;padding:20px 40px;border-radius:15px;font-size:20px;z-index:9999;';
@@ -742,6 +746,9 @@
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
             clearUndoHistory();
+
+            // Ensure motion listener is active
+            startListening();
 
             // Vibrate to signal start
             vibrate([100, 50, 100]);
@@ -1187,6 +1194,10 @@
         let lastTime = 0;
 
         function startListening() {
+            if (isListening) return; // Prevent duplicate listeners
+            isListening = true;
+            console.log("Starting motion listener...");
+
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
                 if ((currentTime - lastTime) > 100) { // Throttle 100ms
