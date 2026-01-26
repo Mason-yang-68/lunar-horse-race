@@ -534,6 +534,7 @@
         socket.on('connect', () => {
             console.log('Socket connected/reconnected');
             hideDisconnectOverlay();
+            socket.emit('get_theme'); // Request theme on connect
 
             // If we were in a game (racing), try to rejoin
             if (myName && isRacing) {
@@ -1108,29 +1109,8 @@
 
         // Request theme on connect
         // Request theme on connect
-        socket.on('connect', () => {
-            console.log('Socket connected!');
-            socket.emit('get_theme');
+        // Duplicate connect handler removed
 
-            // Smart Rejoin Logic
-            if (isRacing && raceId && myName) {
-                console.log('Restoring connection to ACTIVE RACE...');
-                socket.emit('rejoin_game', { name: myName, device_id: deviceId, race_id: raceId });
-                showDisconnectOverlay();
-            } else if (isWaiting && raceId && myName) {
-                console.log('Restoring connection to WAITING ROOM...');
-                socket.emit('rejoin_waiting', { name: myName, device_id: deviceId, race_id: raceId });
-                showDisconnectOverlay();
-            } else {
-                hideDisconnectOverlay();
-                // If we have name but no raceId/state, maybe we should show login?
-                if (!myName) {
-                    document.getElementById('login-screen').style.display = 'block';
-                    document.getElementById('wait-screen').style.display = 'none';
-                    document.getElementById('race-screen').style.display = 'none';
-                }
-            }
-        });
 
         // Handle Game Reset
         socket.on('reset_game_client', (data) => {
