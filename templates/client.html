@@ -408,7 +408,7 @@
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: Infinity // Infinite retries for long standby support
+            reconnectionAttempts: 10
         });
 
         // ========= Device ID for reconnection =========
@@ -428,7 +428,7 @@
         // ========= State Persistence =========
         function saveGameState() {
             sessionStorage.setItem('horse_race_state', JSON.stringify({
-                myName, myAvatar, isRacing, isWaiting, raceId, myDate, myToken
+                myName, myAvatar, isRacing, isWaiting, raceId
             }));
         }
 
@@ -442,7 +442,6 @@
                     if (state.isRacing) isRacing = state.isRacing;
                     if (state.isWaiting) isWaiting = state.isWaiting;
                     if (state.raceId) raceId = state.raceId;
-                    if (state.myToken) myToken = state.myToken;
                     console.log('Restored game state:', state);
                     return true;
                 } catch (e) {
@@ -460,10 +459,8 @@
         let myId = null;
         let myName = '';
         let myAvatar = 'horse1';
-        let myToken = null; // Rejoin Token
         let isRacing = false;
         let isWaiting = false;  // Track waiting state for reconnection
-        let isListening = false; // Track if motion listener is active
         let disconnectOverlay = null;
 
         // Restore state on page load (before socket connect triggers)
@@ -539,24 +536,12 @@
             // If we were in a game (racing), try to rejoin
             if (myName && isRacing) {
                 console.log('Attempting to rejoin game as:', myName);
-                socket.emit('rejoin_game', {
-                    name: myName,
-                    avatar_id: myAvatar,
-                    device_id: deviceId,
-                    race_id: raceId, // Send stored raceId
-                    token: myToken // Phase 3: Send Token
-                });
+                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar, device_id: deviceId });
             }
             // If we were waiting, try to rejoin waiting
             else if (myName && isWaiting) {
                 console.log('Attempting to rejoin waiting as:', myName);
-                socket.emit('rejoin_waiting', {
-                    name: myName,
-                    avatar_id: myAvatar,
-                    device_id: deviceId,
-                    race_id: raceId, // Send stored raceId
-                    token: myToken // Phase 3: Send Token
-                });
+                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar, device_id: deviceId });
             }
         });
 
@@ -571,61 +556,35 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('permission-screen').style.display = 'none';
             document.getElementById('wait-screen').style.display = 'none';
-
-            // Phase 4: Handle State Sync
-            if (data.status === 'FINISHED') {
-                // Game is already over, show results
-                document.getElementById('race-screen').style.display = 'none';
-                document.getElementById('result-screen').style.display = 'block';
-
-                // If we have rank/prize info, show it? 
-                // rejoin_success payload might need to include it or we wait for result event (which happened already)
-                // Server's rejoin_success doesn't send rank/prize yet.
-                // We should just show "Game Finished" or generic result for now.
-                document.getElementById('my-rank').innerText = "比賽已結束";
-                document.getElementById('my-prize').innerText = "請看主螢幕";
-
-                isRacing = false;
-            } else {
-                // RACING
-                document.getElementById('race-screen').style.display = 'block';
-                isRacing = true;
-
-                // Phase 4: Sync Progress/Timer?
-                // Currently client doesn't show timer. But we could handle countdown if needed.
-                // If race_start_time > now, show countdown? 
-                // For now, just resume shaking.
-                startListening();
-            }
+            document.getElementById('race-screen').style.display = 'block';
 
             // Ensure state is correct
+            isRacing = true;
             isWaiting = false;
             saveGameState();
+
+            // IMPORTANT: Restart motion listener (iOS suspends it in background)
+            startListening();
 
             // Show success message
             const msg = document.createElement('div');
             msg.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(0,128,0,0.9);color:white;padding:20px 40px;border-radius:15px;font-size:20px;z-index:9999;';
-            msg.innerText = '✅ 已重新連線!';
+            msg.innerText = '✅ 已重新連線! 可以繼續搖晃!';
             document.body.appendChild(msg);
             setTimeout(() => msg.remove(), 3000);
+
+            // Force a test shake to verify connection works
+            setTimeout(() => {
+                if (socket.connected) {
+                    console.log('Test shake after rejoin, socket.connected =', socket.connected);
+                }
+            }, 500);
         });
 
         // Rejoin failed (game not in progress or player not found)
         socket.on('rejoin_failed', (data) => {
             console.log('Rejoin failed:', data);
             hideDisconnectOverlay();
-
-            // Clean up state so we don't stuck looping
-            isRacing = false;
-            isWaiting = false;
-            clearGameState(); // Clear invalid state
-
-            // Reset UI
-            document.getElementById('race-screen').style.display = 'none';
-            document.getElementById('result-screen').style.display = 'none';
-            document.getElementById('wait-screen').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'block';
-
             alert('無法重新加入遊戲: ' + (data.message || '遊戲已結束'));
         });
 
@@ -654,9 +613,6 @@
             isWaiting = true;
             isRacing = false;
             saveGameState();
-
-            // Ensure motion listener is active
-            startListening();
 
             // Show success message
             const msg = document.createElement('div');
@@ -693,10 +649,6 @@
             if (data.race_id) {
                 raceId = data.race_id;
             }
-            if (data.token) {
-                myToken = data.token;
-                console.log('Got rejoin token:', myToken);
-            }
             // Update name if server modified it (e.g., added suffix for duplicate)
             if (data.name && data.name !== myName) {
                 console.log(`Name changed by server: ${myName} -> ${data.name}`);
@@ -729,15 +681,10 @@
             }
         });
 
-        socket.on('race_started', (data) => {
+        socket.on('race_started', () => {
             document.getElementById('permission-screen').style.display = 'none';
             document.getElementById('wait-screen').style.display = 'none';
             document.getElementById('race-screen').style.display = 'block';
-
-            if (data && data.race_id) {
-                raceId = data.race_id;
-                console.log('Race started with ID:', raceId);
-            }
 
             isWaiting = false;  // No longer waiting
             isRacing = true;  // Mark that we're in a race for reconnection
@@ -746,9 +693,6 @@
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
             clearUndoHistory();
-
-            // Ensure motion listener is active
-            startListening();
 
             // Vibrate to signal start
             vibrate([100, 50, 100]);
@@ -1194,10 +1138,6 @@
         let lastTime = 0;
 
         function startListening() {
-            if (isListening) return; // Prevent duplicate listeners
-            isListening = true;
-            console.log("Starting motion listener...");
-
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
                 if ((currentTime - lastTime) > 100) { // Throttle 100ms
