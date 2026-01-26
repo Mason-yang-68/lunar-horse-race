@@ -543,6 +543,15 @@ def on_join(data):
             # Notify player about name change
             emit('name_changed', {'original': data.get('name'), 'new': name})
     
+    PLAYERS[request.sid] = {
+        'id': request.sid,
+        'name': name,
+        'avatar_id': avatar_id,
+        'device_id': device_id,  # Store device ID
+        'progress': 0,
+        'speed': 0,
+        'finished': False,
+        'dodge_until': 0  # Timestamp when dodge expires
     }
     # Generate Rejoin Token
     import uuid
