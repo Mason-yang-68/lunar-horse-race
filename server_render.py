@@ -1198,29 +1198,6 @@ def on_shake(data):
             'player_name': PLAYERS[request.sid]['name'],
             'rank': finished_count
         }, namespace='/')
-
-        # IMMEDIATE PRIZE for Top 3 (or all if < 3 players?)
-        # Only for Top 3 to avoid shaking screen wait
-        if finished_count <= 3:
-            try:
-                # Calculate prize immediately
-                dist = get_prize_distribution(len(PLAYERS))
-                # rank is 1-based, index is 0-based
-                my_prize = dist[finished_count - 1] if (finished_count - 1) < len(dist) else 0
-                
-                print(f"[IMMEDIATE PRIZE] Player {PLAYERS[request.sid]['name']} (Rank {finished_count}) gets ${my_prize}")
-                
-                socketio.emit('player_prize', {
-                    'rank': finished_count,
-                    'prize': my_prize
-                }, room=request.sid)
-                
-                # Also mark them as 'slot_done' effectively since they have their prize
-                PLAYERS[request.sid]['slot_done'] = True
-                
-            except Exception as e:
-                print(f"[ERROR] Failed to calc immediate prize: {e}")
-
         
         # Trigger slot machine for players finishing 4th or later
         if finished_count > 3:
@@ -1415,40 +1392,6 @@ def on_preview_prizes(data):
     except:
         emit('prize_preview', [])
 
-def get_prize_distribution(n):
-    """Helper to calculate prize list for n players based on current GAME_STATE"""
-    if n <= 0: return []
-    
-    if GAME_STATE.get('top3_prizes'):
-        # Use custom top 3 prizes, rest get 100 each
-        top3 = GAME_STATE['top3_prizes']
-        amounts = []
-        for i in range(n):
-            if i == 0:
-                amounts.append(top3[0])
-            elif i == 1:
-                amounts.append(top3[1])
-            elif i == 2:
-                amounts.append(top3[2])
-            else:
-                amounts.append(200)  # Fixed amount for non-top-3
-        return amounts
-        
-    elif GAME_STATE.get('manual_prizes'):
-         amounts = list(GAME_STATE['manual_prizes']) # Copy
-         # Ensure length matches or fill 0 / truncate
-         if len(amounts) < n:
-             amounts.extend([0] * (n - len(amounts)))
-         elif len(amounts) > n:
-             amounts = amounts[:n]
-         amounts.sort(reverse=True)
-         return amounts
-         
-    else:
-         total = GAME_STATE.get('total_prize', 0)
-         return solve_prizes(total, n)
-
-
 def calculate_and_emit_results():
     """Calculate final results and emit to all clients - can be called from timer or socket event"""
     # Sort by finish order if available, else progress
@@ -1508,10 +1451,29 @@ def calculate_and_emit_results():
         else:
             print("[CALC_RESULTS] Logic says PROCEED to results.")
             
-        # Get all prizes distribution
-        total_players_count = len(sorted_players)
-        amounts = get_prize_distribution(total_players_count)
-
+        if GAME_STATE.get('top3_prizes'):
+            # Use custom top 3 prizes, rest get 100 each
+            top3 = GAME_STATE['top3_prizes']
+            amounts = []
+            for i in range(n):
+                if i == 0:
+                    amounts.append(top3[0])
+                elif i == 1:
+                    amounts.append(top3[1])
+                elif i == 2:
+                    amounts.append(top3[2])
+                else:
+                    amounts.append(200)  # Fixed amount for non-top-3
+        elif GAME_STATE.get('manual_prizes'):
+             amounts = GAME_STATE['manual_prizes']
+             # Ensure length matches or fill 0 / truncate
+             if len(amounts) < n:
+                 amounts.extend([0] * (n - len(amounts)))
+             elif len(amounts) > n:
+                 amounts = amounts[:n]
+             amounts.sort(reverse=True)
+        else:
+             amounts = solve_prizes(total, n)
         
         for i, player in enumerate(sorted_players):
             prize = amounts[i] if i < len(amounts) else 0

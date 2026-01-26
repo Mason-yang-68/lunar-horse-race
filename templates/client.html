@@ -692,26 +692,6 @@
             vibrate([100, 50, 100]);
         });
 
-        socket.on('player_prize', (data) => {
-            console.log('Received immediate prize!', data);
-            document.getElementById('race-screen').style.display = 'none';
-            document.getElementById('result-screen').style.display = 'block';
-
-            isRacing = false; // Game is over for this player
-
-            // Update UI
-            let medalEmoji = '';
-            if (data.rank === 1) medalEmoji = '🥇 ';
-            else if (data.rank === 2) medalEmoji = '🥈 ';
-            else if (data.rank === 3) medalEmoji = '🥉 ';
-
-            document.getElementById('my-rank').innerText = medalEmoji + "名次: #" + data.rank;
-            document.getElementById('my-prize').innerText = "獎金: $" + data.prize;
-
-            // Vibrate for excitement
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200, 50, 200]);
-        });
-
         socket.on('game_results', (results) => {
             document.getElementById('race-screen').style.display = 'none';
             // Only show result screen if NOT playing slots
@@ -923,7 +903,7 @@
                 // Auto-Run for 3 seconds
                 let boostCount = 0;
                 const boostInterval = setInterval(() => {
-                    socket.emit('shake');
+                    socket.emit('shake_event', { intensity: 200 });
                     boostCount++;
                     if (boostCount >= 15) { // 5 shakes per second * 3 seconds
                         clearInterval(boostInterval);
