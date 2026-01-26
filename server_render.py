@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import random
 import os
+import uuid  # Added for race_id generation
 from themes import get_theme, get_questions, get_all_themes, DEFAULT_THEME
 
 app = Flask(__name__)
@@ -17,7 +18,8 @@ BOT_PLAYERS = []  # List of bot player IDs
 GAME_STATE = {
     'status': 'WAITING', # WAITING, RACING, FINISHED
     'total_prize': 0,
-    'theme': DEFAULT_THEME  # Current theme ID
+    'theme': DEFAULT_THEME,  # Current theme ID
+    'race_id': uuid.uuid4().hex[:8]  # Unique ID for the current race session
 }
 ITEMS = {} # { item_id: { type: 'food'|'hardware', position: {x, y}, active: True } }
 ACTIVE_EFFECTS = {} # { sid: { type: 'food'|'hardware', end_time: timestamp } }
@@ -46,7 +48,37 @@ RATE_LIMIT_INTERVAL = 0.05  # Minimum 50ms between shakes (20 per second max)
 PLAYER_LAST_ACTIVE = {
     # sid: last_active_timestamp
 }
-CLEANUP_TIMEOUT = 3600  # 1 hour in seconds
+CLEANUP_TIMEOUT = 300  # 5 minutes cleanup timeout (prevent ghost players)
+
+def cleanup_inactive_players():
+    """Background task to remove inactive players"""
+    import time
+    print("Cleanup task started")
+    while True:
+        eventlet.sleep(60)  # Check every minute
+        current_time = time.time()
+        
+        # Only cleanup in WAITING or FINISHED state to avoid disrupting active race
+        # For RACING, we want to allow rejoin for longer.
+        # But if they are gone for > 5 mins in RACING, probably gone for good?
+        
+        to_remove = []
+        for sid, last_active in list(PLAYER_LAST_ACTIVE.items()):
+            if current_time - last_active > CLEANUP_TIMEOUT:
+                if sid in PLAYERS:
+                    player = PLAYERS[sid]
+                    # Don't remove if finished (need record for results)
+                    if not player.get('finished'):
+                        to_remove.append(sid)
+        
+        for sid in to_remove:
+            if sid in PLAYERS:
+                name = PLAYERS[sid]['name']
+                print(f"[CLEANUP] Removing inactive player: {name} ({sid})")
+                del PLAYERS[sid]
+                del PLAYER_LAST_ACTIVE[sid]
+                socketio.emit('player_disconnected', {'player_id': sid, 'player_name': name}, namespace='/')
+                socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 # Bot player auto-shake runner
 def bot_runner():
@@ -446,9 +478,10 @@ def on_join(data):
             break
     
     if existing_player:
-        # Same name exists - check device_id
+        # Same name exists - CHECK RACE ID (implicitly same session) AND DEVICE ID
+        # Strict validation: Must match device_id to take over
         if device_id and existing_player.get('device_id') == device_id:
-            # Same device! This is a reconnection, take over the slot
+            # Same device! This is a VALID reconnection
             print(f"Player {name} reconnecting with same device_id, taking over slot")
             new_id = request.sid
             existing_player['id'] = new_id
@@ -459,8 +492,14 @@ def on_join(data):
             if existing_pid != new_id:
                 PLAYERS[new_id] = existing_player
                 del PLAYERS[existing_pid]
+                if existing_pid in PLAYER_LAST_ACTIVE:
+                     del PLAYER_LAST_ACTIVE[existing_pid]
+                PLAYER_LAST_ACTIVE[new_id] = os.times().elapsed # Init active time/ use time.time()
+                import time
+                PLAYER_LAST_ACTIVE[new_id] = time.time()
+
             
-            emit('join_success', {'id': new_id, 'name': name}, room=new_id)
+            emit('join_success', {'id': new_id, 'name': name, 'race_id': GAME_STATE['race_id']}, room=new_id)
             # Notify host about reconnection
             socketio.emit('player_reconnected', {
                 'player_id': new_id,
@@ -470,7 +509,9 @@ def on_join(data):
             socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
             return
         else:
-            # Different device, add suffix
+            # Different device or no device_id provided -> Treat as NEW player (duplicate name)
+            # Force rename
+            print(f"Duplicate name {name} with different device_id. Treating as new player.")
             suffix = 2
             new_name = f"{name}{suffix}"
             existing_names = [p['name'] for p in PLAYERS.values()]
@@ -491,7 +532,9 @@ def on_join(data):
         'finished': False,
         'dodge_until': 0  # Timestamp when dodge expires
     }
-    emit('join_success', {'id': request.sid, 'name': name}, room=request.sid)
+    import time
+    PLAYER_LAST_ACTIVE[request.sid] = time.time()
+    emit('join_success', {'id': request.sid, 'name': name, 'race_id': GAME_STATE['race_id']}, room=request.sid)
     socketio.emit('update_player_list', list(PLAYERS.values()), namespace='/')
 
 @socketio.on('rejoin_game')
@@ -520,9 +563,20 @@ def on_rejoin(data):
         emit('rejoin_failed', {'message': '找不到玩家'})
         return
     
-    # Optional: verify device_id matches (log warning if mismatch but allow)
+    # Validate race_id
+    client_race_id = data.get('race_id')
+    server_race_id = GAME_STATE.get('race_id')
+    
+    if client_race_id and client_race_id != server_race_id:
+        print(f"Rejoin failed for {name}: Race ID mismatch (Client: {client_race_id}, Server: {server_race_id})")
+        emit('rejoin_failed', {'message': '賽事 ID 不符，請重新登入'})
+        return
+
+    # Strict: verify device_id matches
     if device_id and old_player.get('device_id') and device_id != old_player.get('device_id'):
-        print(f"WARNING: Player {name} rejoining with different device_id!")
+         print(f"Rejoin failed for {name}: Device ID mismatch")
+         emit('rejoin_failed', {'message': '裝置 ID 不符，無法接管'})
+         return
     
     # Transfer player data to new session
     new_id = request.sid
@@ -540,7 +594,16 @@ def on_rejoin(data):
         del PLAYERS[old_id]
         print(f"Player {name} rejoined: {old_id[:8]}... -> {new_id[:8]}... (states cleared)")
     
-    emit('rejoin_success', {'id': new_id, 'progress': old_player['progress']}, room=new_id)
+    emit('rejoin_success', {
+        'id': new_id, 
+        'progress': old_player['progress'],
+        'race_id': server_race_id,
+        'status': GAME_STATE['status'],
+        'race_start_time': GAME_STATE.get('race_start_time', 0)
+    }, room=new_id)
+
+    import time
+    PLAYER_LAST_ACTIVE[new_id] = time.time()
     # Notify host about reconnection - IMPORTANT: send old_id so host can find the element
     socketio.emit('player_reconnected', {
         'player_id': new_id,
@@ -1198,6 +1261,16 @@ def on_shake(data):
             'player_name': PLAYERS[request.sid]['name'],
             'rank': finished_count
         }, namespace='/')
+
+        # Immediate prize for top 3
+        if finished_count <= 3:
+            prize = get_top3_prize(finished_count)
+            socketio.emit('player_prize', {
+                'player_id': request.sid,
+                'player_name': PLAYERS[request.sid]['name'],
+                'rank': finished_count,
+                'prize': prize
+            }, room=request.sid)
         
         # Trigger slot machine for players finishing 4th or later
         if finished_count > 3:
@@ -1311,6 +1384,18 @@ def on_shake(data):
 
 def has_four(n):
     return '4' in str(n)
+
+def get_top3_prize(rank):
+    if GAME_STATE.get('top3_prizes'):
+        return GAME_STATE['top3_prizes'][rank - 1]
+    if GAME_STATE.get('manual_prizes'):
+        amounts = GAME_STATE['manual_prizes'][:]
+        amounts.sort(reverse=True)
+        return amounts[rank - 1] if len(amounts) >= rank else 0
+    # Fallback to calculated prizes if needed (though usually manual/top3 is set)
+    # We need total players to calculate correctly.
+    amounts = solve_prizes(GAME_STATE['total_prize'], len(PLAYERS))
+    return amounts[rank - 1] if len(amounts) >= rank else 0
 
 def solve_prizes(total, n_players):
     if n_players <= 0: return []
@@ -1518,6 +1603,8 @@ def on_reset():
     
     # Reset game state
     GAME_STATE['status'] = 'WAITING'
+
+    GAME_STATE['race_id'] = uuid.uuid4().hex[:8]  # New race ID on reset
     GAME_STATE['debug_mode'] = False  # Disable debug mode on reset
     GAME_STATE['lucky_winners_count'] = 0 # Reset lucky winners
     GAME_STATE['race_start_time'] = 0
@@ -1538,7 +1625,7 @@ def on_reset():
     
     # Broadcast reset to all clients (will reload page)
     # Using namespace='/' ensures everyone gets it
-    socketio.emit('reset_game_client', {}, namespace='/')
+    socketio.emit('reset_game_client', {'race_id': GAME_STATE.get('race_id')}, namespace='/')
 
 if __name__ == '__main__':
     # Render會提供PORT環境變數
@@ -1552,4 +1639,5 @@ if __name__ == '__main__':
         local_ip = '127.0.0.1'
         
     print(f"Server running at http://{local_ip}:{port}")
+    socketio.start_background_task(cleanup_inactive_players)
     socketio.run(app, host='0.0.0.0', port=port, debug=False)

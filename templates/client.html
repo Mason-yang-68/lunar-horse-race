@@ -423,10 +423,12 @@
         const deviceId = getDeviceId();
         console.log('Device ID:', deviceId);
 
+        let raceId = null;  // Current Race ID
+
         // ========= State Persistence =========
         function saveGameState() {
             sessionStorage.setItem('horse_race_state', JSON.stringify({
-                myName, myAvatar, isRacing, isWaiting
+                myName, myAvatar, isRacing, isWaiting, raceId
             }));
         }
 
@@ -439,6 +441,7 @@
                     if (state.myAvatar) myAvatar = state.myAvatar;
                     if (state.isRacing) isRacing = state.isRacing;
                     if (state.isWaiting) isWaiting = state.isWaiting;
+                    if (state.raceId) raceId = state.raceId;
                     console.log('Restored game state:', state);
                     return true;
                 } catch (e) {
@@ -643,6 +646,9 @@
 
         socket.on('join_success', (data) => {
             myId = data.id;
+            if (data.race_id) {
+                raceId = data.race_id;
+            }
             // Update name if server modified it (e.g., added suffix for duplicate)
             if (data.name && data.name !== myName) {
                 console.log(`Name changed by server: ${myName} -> ${data.name}`);
@@ -720,6 +726,48 @@
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
             } else {
                 document.getElementById('my-rank').innerText = "請看主螢幕";
+            }
+        });
+
+        // Immediate Prize Handler (Top 3)
+        socket.on('player_prize', (data) => {
+            if (typeof myId === 'undefined' || data.player_id !== myId) return;
+
+            // Stop race screen, show result
+            document.getElementById('race-screen').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+
+            let medalEmoji = '';
+            if (data.rank === 1) medalEmoji = '🥇 ';
+            else if (data.rank === 2) medalEmoji = '🥈 ';
+            else if (data.rank === 3) medalEmoji = '🥉 ';
+
+            document.getElementById('my-rank').innerText = medalEmoji + "名次: #" + data.rank;
+            document.getElementById('my-prize').innerText = "獎金: $" + data.prize;
+
+            isRacing = false;
+            // Vibrate for excitement
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+        });
+
+        // Player Finished Handler (For 4th+ place visual update)
+        socket.on('player_finished', (data) => {
+            if (typeof myId === 'undefined' || data.player_id !== myId) return;
+
+            // If rank > 3, we are waiting for slots. 
+            // Stop the shake UI or show a message?
+            if (data.rank > 3) {
+                // Optional: Visual change to indicate "Waiting for Slot"
+                // For now, let's just ensure we don't look stuck.
+                // Maybe hide the horse/shake hint?
+                const shakeArea = document.getElementById('shake-area');
+                if (shakeArea) shakeArea.style.opacity = '0.5'; // Dim it
+
+                // Show a small toast?
+                const msg = document.createElement('div');
+                msg.style.cssText = 'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:15px;border-radius:10px;z-index:999;';
+                msg.innerText = '🏁 已抵達! 等待抽獎...';
+                document.body.appendChild(msg);
             }
         });
 
@@ -1028,8 +1076,39 @@
         });
 
         // Request theme on connect
+        // Request theme on connect
         socket.on('connect', () => {
+            console.log('Socket connected!');
             socket.emit('get_theme');
+
+            // Smart Rejoin Logic
+            if (isRacing && raceId && myName) {
+                console.log('Restoring connection to ACTIVE RACE...');
+                socket.emit('rejoin_game', { name: myName, device_id: deviceId, race_id: raceId });
+                showDisconnectOverlay();
+            } else if (isWaiting && raceId && myName) {
+                console.log('Restoring connection to WAITING ROOM...');
+                socket.emit('rejoin_waiting', { name: myName, device_id: deviceId, race_id: raceId });
+                showDisconnectOverlay();
+            } else {
+                hideDisconnectOverlay();
+                // If we have name but no raceId/state, maybe we should show login?
+                if (!myName) {
+                    document.getElementById('login-screen').style.display = 'block';
+                    document.getElementById('wait-screen').style.display = 'none';
+                    document.getElementById('race-screen').style.display = 'none';
+                }
+            }
+        });
+
+        // Handle Game Reset
+        socket.on('reset_game_client', (data) => {
+            console.log('Game reset by host');
+            sessionStorage.removeItem('horse_race_state');
+            raceId = null;
+            isRacing = false;
+            isWaiting = false;
+            location.reload();
         });
 
         function joinGame() {

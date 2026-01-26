@@ -126,26 +126,26 @@
         }
 
         .track-player.boosted img {
-            transform: scale(1.5) !important;
+            transform: scaleX(var(--horse-dir, 1)) scale(1.5) !important;
             filter: drop-shadow(0 0 10px #00ff00) drop-shadow(0 0 20px #00ff00) brightness(1.5) !important;
             animation: boost-shake 0.2s infinite;
         }
 
         @keyframes boost-shake {
             0% {
-                transform: scale(1.5) rotate(0deg);
+                transform: scaleX(var(--horse-dir, 1)) scale(1.5) rotate(0deg);
             }
 
             25% {
-                transform: scale(1.5) rotate(-5deg);
+                transform: scaleX(var(--horse-dir, 1)) scale(1.5) rotate(-5deg);
             }
 
             75% {
-                transform: scale(1.5) rotate(5deg);
+                transform: scaleX(var(--horse-dir, 1)) scale(1.5) rotate(5deg);
             }
 
             100% {
-                transform: scale(1.5) rotate(0deg);
+                transform: scaleX(var(--horse-dir, 1)) scale(1.5) rotate(0deg);
             }
         }
 
