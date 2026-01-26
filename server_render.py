@@ -1307,9 +1307,7 @@ def on_shake(data):
         'progress': PLAYERS[request.sid]['progress']
     }, namespace='/')
 
-@socketio.on('game_completed')
-def on_game_completed(data):
-    pass
+
 
 def has_four(n):
     return '4' in str(n)
