@@ -522,7 +522,7 @@ def on_join(data):
                 PLAYER_LAST_ACTIVE[new_id] = time.time()
 
             
-            emit('join_success', {'id': new_id, 'name': name, 'race_id': GAME_STATE['race_id']}, room=new_id)
+            emit('join_success', {'id': new_id, 'name': name, 'race_id': GAME_STATE['race_id'], 'token': existing_player.get('token')}, room=new_id)
             # Notify host about reconnection
             socketio.emit('player_reconnected', {
                 'player_id': new_id,
