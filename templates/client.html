@@ -408,7 +408,7 @@
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: 10
+            reconnectionAttempts: Infinity // Infinite retries for long standby support
         });
 
         // ========= Device ID for reconnection =========
@@ -424,11 +424,12 @@
         console.log('Device ID:', deviceId);
 
         let raceId = null;  // Current Race ID
+        let rejoinToken = null; // Rejoin Token
 
         // ========= State Persistence =========
         function saveGameState() {
             sessionStorage.setItem('horse_race_state', JSON.stringify({
-                myName, myAvatar, isRacing, isWaiting, raceId
+                myName, myAvatar, isRacing, isWaiting, raceId, rejoinToken
             }));
         }
 
@@ -442,6 +443,7 @@
                     if (state.isRacing) isRacing = state.isRacing;
                     if (state.isWaiting) isWaiting = state.isWaiting;
                     if (state.raceId) raceId = state.raceId;
+                    if (state.rejoinToken) rejoinToken = state.rejoinToken;
                     console.log('Restored game state:', state);
                     return true;
                 } catch (e) {
@@ -535,13 +537,13 @@
 
             // If we were in a game (racing), try to rejoin
             if (myName && isRacing) {
-                console.log('Attempting to rejoin game as:', myName);
-                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar, device_id: deviceId });
+                console.log('Attempting to rejoin game as:', myName, 'RaceID:', raceId);
+                socket.emit('rejoin_game', { name: myName, avatar_id: myAvatar, device_id: deviceId, race_id: raceId, token: rejoinToken });
             }
             // If we were waiting, try to rejoin waiting
             else if (myName && isWaiting) {
                 console.log('Attempting to rejoin waiting as:', myName);
-                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar, device_id: deviceId });
+                socket.emit('rejoin_waiting', { name: myName, avatar_id: myAvatar, device_id: deviceId, race_id: raceId, token: rejoinToken });
             }
         });
 
@@ -556,15 +558,36 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('permission-screen').style.display = 'none';
             document.getElementById('wait-screen').style.display = 'none';
-            document.getElementById('race-screen').style.display = 'block';
-
             // Ensure state is correct
             isRacing = true;
             isWaiting = false;
+
+            // Phase 4: State Sync UI Logic
+            if (data.status === 'FINISHED' || (data.status === 'RACING' && data.finished)) {
+                // Determine if we should show result screen
+                document.getElementById('race-screen').style.display = 'none';
+                document.getElementById('result-screen').style.display = 'block';
+
+                if (data.finished) {
+                    const rank = data.finish_order;
+                    let medalEmoji = '';
+                    if (rank === 1) medalEmoji = '🥇 ';
+                    else if (rank === 2) medalEmoji = '🥈 ';
+                    else if (rank === 3) medalEmoji = '🥉 ';
+                    document.getElementById('my-rank').innerText = medalEmoji + "名次: #" + rank;
+                    document.getElementById('my-prize').innerText = "獎金: (結算中)"; // Placeholder until full results
+                }
+                isRacing = false; // Technically race is over for us
+            } else {
+                // Still racing
+                document.getElementById('race-screen').style.display = 'block';
+                startListening();
+            }
+
             saveGameState();
 
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
-            startListening();
+            // startListening(); // Moved inside else block above logic
 
             // Show success message
             const msg = document.createElement('div');
@@ -649,6 +672,10 @@
             if (data.race_id) {
                 raceId = data.race_id;
             }
+            if (data.token) {
+                rejoinToken = data.token;
+                console.log('Got rejoin token:', rejoinToken);
+            }
             // Update name if server modified it (e.g., added suffix for duplicate)
             if (data.name && data.name !== myName) {
                 console.log(`Name changed by server: ${myName} -> ${data.name}`);
@@ -681,7 +708,11 @@
             }
         });
 
-        socket.on('race_started', () => {
+        socket.on('race_started', (data) => {
+            if (data && data.race_id) {
+                raceId = data.race_id;
+                console.log('Race started with ID:', raceId);
+            }
             document.getElementById('permission-screen').style.display = 'none';
             document.getElementById('wait-screen').style.display = 'none';
             document.getElementById('race-screen').style.display = 'block';
