@@ -1089,8 +1089,10 @@ def on_slot_result(data):
     is_winner = data.get('won', False)
     
     # Determine prize
+    is_lucky_winner = False
     if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
         # Lucky winner!
+        is_lucky_winner = True
         GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
         prize = GAME_STATE.get('lucky_prize', 500)
         player['slot_prize'] = prize
@@ -1104,7 +1106,7 @@ def on_slot_result(data):
     # Send result back to player
     player['slot_done'] = True
     socketio.emit('slot_result_final', {
-        'won': is_winner and GAME_STATE.get('lucky_winners_count', 0) <= GAME_STATE.get('lucky_max_winners', 3),
+        'won': is_lucky_winner,
         'prize': prize,
         'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
         'player_id': player_id,
