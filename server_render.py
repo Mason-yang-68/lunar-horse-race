@@ -1086,22 +1086,68 @@ def on_slot_result(data):
         return
     
     player = PLAYERS[player_id]
-    is_winner = data.get('won', False)
+    # Dynamic Probability Logic
+    # 1. Check if slots are even available
+    remaining_slots = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
     
-    # Determine prize
+    # 2. Count how many players are waiting (finished > 3 and not slot_done)
+    waiting_players = 0
+    for pid, p in PLAYERS.items():
+        if p.get('finish_order', 0) > 3 and not p.get('slot_done'):
+            waiting_players += 1
+    
+    # 3. Determine if this player wins based on client's 'won' claim AND availability
+    # But wait, User requested Dynamic Probability: "Remaining Slots / Waiting Players"
+    # This implies the SERVER should decide the win chance, not just trust the client's 'won' flag combined with availability.
+    # However, the current client architecture sends 'won' based on local probability.
+    # To fully implement "Dynamic Probability" as requested, we should ideally decide on server.
+    # BUT, to keep it simple and consistent with the "don't touch other parts" rule, 
+    # we can use the client's trigger, but strictly gate it by availability.
+    # Actually, the user's prompt says: "Suggestion: Change win probability to Remaining / Waiting".
+    # Since we can't easily change the Client's random number generator dynamically without code there,
+    # we will stick to the server-side validation:
+    # If client says WON, and slots available -> WIN.
+    # If client says WON, and slots FULL -> LOSE (Consolation).
+    
+    # Wait, the prompt says "Server still uses fixed 33%...". 
+    # To implement dynamic probability properly without changing client, we can do this:
+    # If client sends 'won=True', we treat it as a "Request for Win".
+    # Server then rolls the dice based on Dynamic Probability.
+    
     is_lucky_winner = False
-    if is_winner and GAME_STATE.get('lucky_winners_count', 0) < GAME_STATE.get('lucky_max_winners', 3):
-        # Lucky winner!
-        is_lucky_winner = True
+    result_type = 'consolation'
+    
+    if remaining_slots > 0:
+        # Dynamic Chance Algorithm
+        import random
+        # Chance = Remaining Slots / Waiting Players (capped at 1.0)
+        chance = 1.0
+        if waiting_players > 0:
+             chance = remaining_slots / waiting_players
+        
+        # We only roll if the client "requested" a win (or maybe we always roll?)
+        # Current client sends 'won' true/false based on fixed 33%.
+        # Let's override purely with server logic if client sent 'won=True' to ensure it's not too frequent?
+        # OR better: The client spin is just a visual trigger. The server decides.
+        # But `data.get('won')` comes from client. 
+        # Let's assume client is just the trigger. Server rolls the dice.
+        
+        if random.random() < chance:
+             is_lucky_winner = True
+             result_type = 'lucky'
+        
+    if is_lucky_winner:
         GAME_STATE['lucky_winners_count'] = GAME_STATE.get('lucky_winners_count', 0) + 1
         prize = GAME_STATE.get('lucky_prize', 500)
         player['slot_prize'] = prize
-        print(f"Player {player['name']} WON lucky prize! ({GAME_STATE['lucky_winners_count']}/{GAME_STATE['lucky_max_winners']})")
+        print(f"Player {player['name']} WON lucky prize! (Dynamic Chance: {remaining_slots}/{waiting_players})")
     else:
-        # Not a winner or slots full - consolation prize
+        # Check if it was because slots were full
+        if remaining_slots <= 0 and data.get('won', False):
+             result_type = 'slots_full' 
         prize = 200
         player['slot_prize'] = prize
-        print(f"Player {player['name']} got consolation prize: {prize}")
+        print(f"Player {player['name']} got consolation prize. (Result: {result_type})")
     
     # Send result back to player
     player['slot_done'] = True
@@ -1110,7 +1156,18 @@ def on_slot_result(data):
         'prize': prize,
         'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
         'player_id': player_id,
-        'player_name': player['name']
+        'player_name': player['name'],
+        'result_type': result_type
+    }, namespace='/')
+
+    # UNIFIED BROADCAST TO HOST (and everyone)
+    socketio.emit('slot_result_broadcast', {
+        'player_name': player['name'],
+        'won': is_lucky_winner,
+        'prize': prize,
+        'result_type': result_type,
+        'slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+        'player_id': player_id
     }, namespace='/')
     
     # If all prizes are now claimed, notify all players who might still have slot open

@@ -1144,6 +1144,64 @@
             }
         });
 
+        // Unified Slot Result Broadcast (from User Suggestion)
+        socket.on('slot_result_broadcast', (data) => {
+            console.log('[LEADERBOARD] Received slot result broadcast:', data);
+
+            // Find and update the row
+            let row = document.getElementById(`leaderboard-row-${data.player_id}`);
+            // Fallback: Search by player name
+            if (!row && data.player_name) {
+                const entries = document.getElementById('live-leaderboard-entries');
+                if (entries) {
+                    const allRows = entries.querySelectorAll('div[id^="leaderboard-row-"]');
+                    for (const r of allRows) {
+                        if (r.textContent.includes(data.player_name)) {
+                            row = r;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (row) {
+                const prizeSpan = row.querySelector('.prize-value');
+                // Determine display content based on result type
+                let prizeHTML = '';
+                let bgColor = '';
+
+                if (data.won) {
+                    // Win (Lucky)
+                    prizeHTML = `<span style="color:#00FF00;float:right;font-weight:bold;">🎉 $${data.prize}</span>`;
+                    bgColor = 'rgba(0,255,0,0.3)';
+                } else if (data.result_type === 'slots_full') {
+                    // Slots Full (Consolation)
+                    prizeHTML = `<span style="color:#FF6B6B;float:right;font-weight:bold;">(額滿) $${data.prize}</span>`;
+                    bgColor = 'rgba(255,100,100,0.2)';
+                } else {
+                    // Normal Lose (Consolation)
+                    prizeHTML = `<span style="color:gold;float:right;font-weight:bold;">$${data.prize}</span>`;
+                    bgColor = 'rgba(255,215,0,0.3)';
+                }
+
+                if (prizeSpan) {
+                    prizeSpan.outerHTML = prizeHTML;
+                } else {
+                    // Fallback replacement
+                    const currentHTML = row.innerHTML;
+                    if (currentHTML.includes('抽獎中')) {
+                        row.innerHTML = currentHTML.replace(/<span[^>]*>🎰 抽獎中...<\/span>/, prizeHTML);
+                    }
+                }
+
+                // Animate
+                row.animate([
+                    { backgroundColor: bgColor },
+                    { backgroundColor: 'transparent' }
+                ], { duration: 1000 });
+            }
+        });
+
         // Update leaderboard when prizes exhausted (auto-assigned)
         socket.on('slot_prizes_exhausted', (data) => {
             console.log('[LEADERBOARD] Prizes exhausted for:', data);
