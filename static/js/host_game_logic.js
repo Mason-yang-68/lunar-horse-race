@@ -294,11 +294,17 @@ window.HostLogic = (function () {
 
         if (password === CORRECT_PASSWORD) {
             document.getElementById('password-overlay').style.display = 'none';
+            // Force takeover as controller
+            socket.emit('host_register', { force: true });
+
             socket.emit('disable_debug_mode'); // Ensure debug mode is off
             socket.emit('set_theme', { theme_id: selectedTheme });
             document.getElementById('theme-select').value = selectedTheme;
         } else if (password === 'mason') {
             document.getElementById('password-overlay').style.display = 'none';
+            // Force takeover as controller
+            socket.emit('host_register', { force: true });
+
             socket.emit('enable_debug_mode');
             socket.emit('set_theme', { theme_id: selectedTheme });
             document.getElementById('theme-select').value = selectedTheme;

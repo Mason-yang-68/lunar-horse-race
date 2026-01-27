@@ -264,11 +264,13 @@ def on_disconnect():
     print(f"Client disconnected: {request.sid}")
 
 @socketio.on('host_register')
-def on_host_register():
+def on_host_register(data=None):
     """Register a HOST connection - first one becomes controller, others are viewers"""
     import time
     
     sid = request.sid
+    data = data or {}
+    force_takeover = data.get('force', False)
     
     # Check if old controller is still valid
     old_controller = HOST_CONTROL['controller_sid']
@@ -277,7 +279,11 @@ def on_host_register():
     # (disconnect_time is set when controller disconnects)
     should_become_controller = False
     
-    if old_controller is None:
+    if force_takeover:
+         # Force takeover (e.g. correct password entered)
+        should_become_controller = True
+        print(f"Force takeover requested by {sid[:8]}...")
+    elif old_controller is None:
         # No controller exists
         should_become_controller = True
         print(f"No controller exists, new HOST will be controller")
