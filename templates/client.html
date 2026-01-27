@@ -903,7 +903,7 @@
                 // Auto-Run for 3 seconds
                 let boostCount = 0;
                 const boostInterval = setInterval(() => {
-                    socket.emit('shake_event', { intensity: 200 });
+                    socket.emit('shake');
                     boostCount++;
                     if (boostCount >= 15) { // 5 shakes per second * 3 seconds
                         clearInterval(boostInterval);

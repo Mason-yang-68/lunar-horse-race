@@ -1198,6 +1198,17 @@ def on_shake(data):
             'player_name': PLAYERS[request.sid]['name'],
             'rank': finished_count
         }, namespace='/')
+
+        # Immediate prize for Top 3 (skip waiting for slots)
+        if finished_count <= 3:
+            prize = get_top3_prize(finished_count)
+            socketio.emit('player_prize', {
+                'player_id': request.sid,
+                'player_name': PLAYERS[request.sid]['name'],
+                'rank': finished_count,
+                'prize': prize
+            }, room=request.sid)
+
         
         # Trigger slot machine for players finishing 4th or later
         if finished_count > 3:
@@ -1391,6 +1402,17 @@ def on_preview_prizes(data):
         emit('prize_preview', prizes)
     except:
         emit('prize_preview', [])
+
+
+def get_top3_prize(rank):
+    if GAME_STATE.get('top3_prizes'):
+        return GAME_STATE['top3_prizes'][rank - 1]
+    if GAME_STATE.get('manual_prizes'):
+        amounts = GAME_STATE['manual_prizes'][:]
+        amounts.sort(reverse=True)
+        return amounts[rank - 1] if len(amounts) >= rank else 0
+    amounts = solve_prizes(GAME_STATE['total_prize'], len(PLAYERS))
+    return amounts[rank - 1] if len(amounts) >= rank else 0
 
 def calculate_and_emit_results():
     """Calculate final results and emit to all clients - can be called from timer or socket event"""

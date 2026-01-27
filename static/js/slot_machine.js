@@ -17,15 +17,6 @@ window.initSlotMachine = function (socket) {
             if (data.won) {
                 msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${data.prize}</div>`;
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
-
-                // Update the result screen prize text as well (so it shows correct amount when screens switch)
-                const resultPrizeEl = document.getElementById('my-prize');
-                if (resultPrizeEl) {
-                    resultPrizeEl.innerText = "獎金: $" + data.prize;
-                    // Highlight it
-                    resultPrizeEl.style.color = "#00FF00";
-                    resultPrizeEl.style.textShadow = "0 0 10px #0f0";
-                }
             } else {
                 msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">💰 獎金</div><div style="font-size:32px;color:white;margin-top:10px;">$${data.prize}</div>`;
                 if (navigator.vibrate) navigator.vibrate([100]);
@@ -33,23 +24,17 @@ window.initSlotMachine = function (socket) {
         }
 
         // Result screen logic - ONLY for the player involved
-        // Use loose equality (==) to handle string/number ID mismatches
-        if (typeof myId !== 'undefined' && data.player_id == myId) {
+        if (typeof myId !== 'undefined' && data.player_id === myId) {
             setTimeout(() => {
                 const overlay = document.getElementById('slot-overlay');
                 if (overlay) overlay.remove();
 
-                // Show result screen ONLY if game is actually defined as over (race screen hidden)
-                // Or if we want to force it. BUT, if game is still running (others racing), 
-                // we should stick to race screen (which might show 'Finished' status)
-                // However, client.html hides race-screen on game_results.
-                // So if race-screen is already hidden, we ensure result-screen is shown.
-                // If race-screen is VISIBLE, it means game is not over. We just remove overlay.
-                const raceScreen = document.getElementById('race-screen');
+                // Show result screen after slot closes (game_results should have been received)
                 const resultScreen = document.getElementById('result-screen');
-
-                if (raceScreen && raceScreen.style.display === 'none') {
-                    if (resultScreen) resultScreen.style.display = 'block';
+                const raceScreen = document.getElementById('race-screen');
+                if (resultScreen && raceScreen) {
+                    raceScreen.style.display = 'none';
+                    resultScreen.style.display = 'block';
                 }
             }, 5000);
         } else {
@@ -161,54 +146,22 @@ function showSlotMachine(socket, data) {
 }
 
 // Slot Machine Audio
-// Slot Machine Audio using Web Audio API (No external files needed)
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playSlotSound(type) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    if (type === 'spin') {
-        // Mechanical reeling sound (low frequency ticks)
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
-    } else if (type === 'win') {
-        // Victory fanfare
-        const now = audioCtx.currentTime;
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
-        osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
-        osc.frequency.setValueAtTime(1046.50, now + 0.4); // C6
-
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.8);
-
-        osc.start(now);
-        osc.stop(now + 0.8);
-    }
-}
-
-let spinInterval = null;
+const slotSpinSound = new Audio('/static/audio/slot_spin.mp3'); // We need these files or use tones
+const slotWinSound = new Audio('/static/audio/slot_win.mp3');
 
 function spinReels(socket, data) {
     const canWin = data.lucky_slots_remaining > 0;
 
-    // Start spin sound loop
-    if (spinInterval) clearInterval(spinInterval);
-    spinInterval = setInterval(() => playSlotSound('spin'), 100);
+    // Play spin sound logic
+    // Stop any existing playback
+    slotSpinSound.pause();
+    slotSpinSound.currentTime = 0;
+    slotWinSound.pause();
+    slotWinSound.currentTime = 0;
 
-    if (navigator.vibrate) navigator.vibrate(100);
+    // Start spin loop
+    slotSpinSound.loop = true;
+    slotSpinSound.play().catch(e => console.log('Slot spin audio failed:', e));
 
     if (navigator.vibrate) navigator.vibrate(100);
 
@@ -252,14 +205,12 @@ function spinReels(socket, data) {
     // Stop after longest duration + suspense delay
     setTimeout(() => {
         // Stop spin sound
-        if (spinInterval) {
-            clearInterval(spinInterval);
-            spinInterval = null;
-        }
+        slotSpinSound.pause();
+        slotSpinSound.currentTime = 0;
 
         // Play result sound if won
         if (won) {
-            playSlotSound('win');
+            slotWinSound.play().catch(e => console.log('Slot win audio failed:', e));
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
         } else {
             if (navigator.vibrate) navigator.vibrate([100]);
