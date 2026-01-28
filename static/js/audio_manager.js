@@ -87,10 +87,33 @@ window.AudioManager = (function () {
 
         playCheerSound: function () {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const freqs = [523.25, 659.25, 783.99, 1046.50];
-            freqs.forEach((freq, i) => {
-                setTimeout(() => playTone(freq, 'triangle', 0.15, 0.4), i * 50);
-            });
+
+            const duration = 0.8;
+            const sampleRate = audioCtx.sampleRate;
+            const buffer = audioCtx.createBuffer(1, sampleRate * duration, sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) {
+                data[i] = (Math.random() * 2 - 1) * 0.6;
+            }
+
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 900;
+            filter.Q.value = 0.6;
+
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.5, audioCtx.currentTime + 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+            source.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            source.start();
+            source.stop(audioCtx.currentTime + duration);
         },
 
         playWinSound: function () {

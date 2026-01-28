@@ -210,7 +210,6 @@ def on_set_theme(data):
     print(f"[THEME] Theme set to: {theme['name']} ({theme_id})")
     print(f"[THEME] GAME_STATE['theme'] is now: {GAME_STATE['theme']}")
     PLAYER_QUESTIONS.clear()
-    USED_QUESTIONS_BY_THEME[theme_id] = set()
     
     # Broadcast theme change to all clients
     socketio.emit('theme_changed', {
@@ -705,7 +704,6 @@ def prepare_waiting_state(reason=''):
     RATE_LIMIT.clear()
     PLAYER_LAST_ACTIVE.clear()
     PLAYER_QUESTIONS.clear()
-    USED_QUESTIONS_BY_THEME.clear()
 
 def is_controller(sid):
     return HOST_CONTROL['controller_sid'] == sid
@@ -818,10 +816,8 @@ def race_timer():
 
 # Question bank is now managed in themes.py
 
-# Track which questions each player has seen
+# Track which questions each player has seen per theme
 PLAYER_QUESTIONS = {}
-# Track which questions have been asked globally per theme
-USED_QUESTIONS_BY_THEME = {}
 
 def quiz_spawner():
     """Background task to send quiz questions to random players during race"""
@@ -894,24 +890,25 @@ def quiz_spawner():
         theme_questions = get_questions(current_theme)
         print(f"[QUIZ] Using theme: {current_theme}, total questions: {len(theme_questions)}")
         
-        # Initialize tracking for global and player history
+        if not theme_questions:
+            continue
+
+        # Initialize tracking for player history (per theme)
         if player_id not in PLAYER_QUESTIONS:
-            PLAYER_QUESTIONS[player_id] = []
-        if current_theme not in USED_QUESTIONS_BY_THEME:
-            USED_QUESTIONS_BY_THEME[current_theme] = set()
-        used_questions = USED_QUESTIONS_BY_THEME[current_theme]
+            PLAYER_QUESTIONS[player_id] = {}
+        if current_theme not in PLAYER_QUESTIONS[player_id]:
+            PLAYER_QUESTIONS[player_id][current_theme] = set()
+        used_questions = PLAYER_QUESTIONS[player_id][current_theme]
         
-        # Pick a question globally unused (reset only after all questions used)
+        # Pick a question unused by this player (reset only after all questions used)
         available_qs = [i for i in range(len(theme_questions)) if i not in used_questions]
         if not available_qs:
             used_questions.clear()
             available_qs = list(range(len(theme_questions)))
-            PLAYER_QUESTIONS.clear()
         
         q_index = random.choice(available_qs)
         question = theme_questions[q_index]
         used_questions.add(q_index)
-        PLAYER_QUESTIONS[player_id].append(q_index)
         
         # Randomize answer order
         original_options = question['options']

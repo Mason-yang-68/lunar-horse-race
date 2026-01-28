@@ -1604,7 +1604,7 @@
                 // Only cheer if significant progress (>5%) and more than 1 player
                 if (maxProgress > 5 && playerList.length > 1) {
                     console.log(`Leader changed to ${newLeaderId}, cheering!`);
-                    playCheerSound();
+                    if (window.AudioManager) window.AudioManager.playCheerSound();
 
                     // Show "New Leader!" text effect
                     const leader = playerList.find(p => p.id === newLeaderId);

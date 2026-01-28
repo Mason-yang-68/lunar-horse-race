@@ -188,6 +188,18 @@ window.HostLogic = (function () {
                         }
                     }
                 }
+
+                if (raceTrack && currentLeaderId) {
+                    raceTrack.querySelectorAll('.track-player.is-leader').forEach((el) => {
+                        if (el.id !== `track-${currentLeaderId}`) {
+                            el.classList.remove('is-leader');
+                        }
+                    });
+                    const leaderEl = raceTrack.querySelector(`#track-${currentLeaderId}`);
+                    if (leaderEl) {
+                        leaderEl.classList.add('is-leader');
+                    }
+                }
             }
         });
 

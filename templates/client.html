@@ -562,6 +562,7 @@
 
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
             startListening();
+            hideTapButtonForIOS();
 
             // Show success message
             const msg = document.createElement('div');
@@ -687,6 +688,7 @@
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
             clearUndoHistory();
+            hideTapButtonForIOS();
 
             // Vibrate to signal start
             vibrate([100, 50, 100]);
@@ -1039,13 +1041,18 @@
             socket.emit('join_game', { name: myName, avatar_id: myAvatar, device_id: deviceId });
         }
 
+        const motionPermissionKey = 'motion_permission_granted';
+        let motionPermissionGranted = localStorage.getItem(motionPermissionKey) === 'true';
+
         function requestPermission() {
             DeviceMotionEvent.requestPermission()
                 .then(response => {
                     if (response == 'granted') {
+                        motionPermissionGranted = true;
+                        localStorage.setItem(motionPermissionKey, 'true');
                         document.getElementById('permission-screen').style.display = 'none';
                         document.getElementById('wait-screen').style.display = 'block';
-                        hideTapButtonForIOS();
+                        hideTapButtonForIOS(true);
                         startListening();
                     } else {
                         alert("Permission denied. You can still tap the button to play!");
@@ -1121,10 +1128,11 @@
             }
         }
 
-        function hideTapButtonForIOS() {
+        function hideTapButtonForIOS(force = false) {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             if (!isIOS) return;
+            if (!force && !motionPermissionGranted) return;
             const btn = document.querySelector('.shake-btn');
             if (btn) {
                 btn.style.display = 'none';
