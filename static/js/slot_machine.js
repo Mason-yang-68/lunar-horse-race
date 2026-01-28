@@ -10,38 +10,31 @@ window.initSlotMachine = function (socket) {
         showSlotMachine(socket, data);
     });
 
-    // Listener for final result
-    socket.on('slot_result_final', (data) => {
-        const msgEl = document.getElementById('slot-message');
-        if (msgEl) {
-            if (data.won) {
-                msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${data.prize}</div>`;
-                if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
-            } else {
-                msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">💰 獎金</div><div style="font-size:32px;color:white;margin-top:10px;">$${data.prize}</div>`;
-                if (navigator.vibrate) navigator.vibrate([100]);
-            }
-        }
+    // Listener for slot spin result (Server Authoritative)
+    socket.on('slot_spin_result', (data) => {
+        console.log('Received slot spin result:', data);
 
-        // Result screen logic - ONLY for the player involved
-        if (typeof myId !== 'undefined' && data.player_id === myId) {
-            setTimeout(() => {
-                const overlay = document.getElementById('slot-overlay');
-                if (overlay) overlay.remove();
+        // If we are currently spinning (we should be if we requested it),
+        // we need to pass this data to the spin animation logic.
+        // We can store it in a global or trigger the resolve if it was a promise.
+        // But since spinReels is running, let's look at how to inject it.
 
-                // Show result screen after slot closes (game_results should have been received)
-                const resultScreen = document.getElementById('result-screen');
-                const raceScreen = document.getElementById('race-screen');
-                if (resultScreen && raceScreen) {
-                    raceScreen.style.display = 'none';
-                    resultScreen.style.display = 'block';
-                }
-            }, 5000);
-        } else {
-            // For others, just ensure overlay is removed if it somehow got stuck (unlikely)
-            // But do NOT switch to result screen
-        }
+        // Easier way: call a function that `spinReels` is polling or just set a global
+        window.currentSlotResult = data;
+
+        // If this is just a re-broadcast/late join, we might need to show message directly?
+        // But for the active player, `spinReels` loop deals with it.
+
+        // Handle message display "immediately" (or better, after animation?)
+        // Let's let animate completion handle the text update to build suspense.
+
+        // Result screen logic - Wait for animation to finish!
+        // The animation function `spinReels` will check `window.currentSlotResult`.
     });
+
+    // Old listener for final result (Keep slightly for compat or remove? Remove, replaced by above)
+    // socket.on('slot_result_final', ... ); REMOVED
+
 
     // Listener for prizes exhausted (too slow!)
     socket.on('slot_prizes_exhausted', (data) => {
@@ -150,95 +143,154 @@ const slotSpinSound = new Audio('/static/audio/slot_spin.mp3'); // We need these
 const slotWinSound = new Audio('/static/audio/slot_win.mp3');
 
 function spinReels(socket, data) {
-    const canWin = data.lucky_slots_remaining > 0;
+    // 1. Reset State
+    window.currentSlotResult = null;
+    const msgEl = document.getElementById('slot-message');
+    if (msgEl) msgEl.innerHTML = "🎰 轉動中... 祝你好運!";
 
     // Play spin sound logic
-    // Stop any existing playback
     slotSpinSound.pause();
     slotSpinSound.currentTime = 0;
     slotWinSound.pause();
     slotWinSound.currentTime = 0;
 
-    // Start spin loop
     slotSpinSound.loop = true;
     slotSpinSound.play().catch(e => console.log('Slot spin audio failed:', e));
-
     if (navigator.vibrate) navigator.vibrate(100);
 
-    // --- RESULT LOGIC ---
-    // Use server provided probability
-    const winProb = (data.win_probability !== undefined) ? data.win_probability : (canWin ? 0.5 : 0);
-    console.log(`[SLOT] Win Probability: ${winProb} (Can Win: ${canWin})`);
+    // 2. Request Result from Server (Request-Response)
+    console.log("[SLOT] Requesting Spin from Server...");
+    socket.emit('request_slot_spin');
 
-    let won = false;
-    if (canWin && Math.random() < winProb) {
-        won = true;
-    }
+    // 3. Start "Infinite" Animation Loop until result arrives
+    const reels = [1, 2, 3];
+    const reelElements = reels.map(r => document.getElementById('reel' + r));
+    let spinning = true;
+    let frameId = null;
+    let pos = [0, 0, 0];
+    const speeds = [15, 20, 25]; // Different speeds
 
-    // Generate visual targets
-    const results = [];
-    if (won) {
-        const match = 7; // Lucky 7
-        results.push(match, match, match);
-    } else {
-        // Random non-matching
-        let r1 = Math.floor(Math.random() * 10) + 1;
-        let r2 = Math.floor(Math.random() * 10) + 1;
-        let r3 = Math.floor(Math.random() * 10) + 1;
+    const animateLoop = () => {
+        if (!spinning) return;
 
-        // Ensure not matching by accident (simple check)
-        if (r1 === r2 && r2 === r3) {
-            r3 = (r3 % 10) + 1;
+        for (let i = 0; i < 3; i++) {
+            pos[i] += speeds[i];
+            reelElements[i].style.transform = `translateY(-${pos[i] % 800}px)`;
         }
-        results.push(r1, r2, r3);
-    }
+        frameId = requestAnimationFrame(animateLoop);
+    };
+    frameId = requestAnimationFrame(animateLoop);
 
-    // Animate Reels
-    const durations = [2000, 2500, 3000];
-    for (let r = 0; r < 3; r++) {
-        // Ensure animateReel is available (defined below)
-        if (typeof animateReel === 'function') {
-            animateReel(r + 1, results[r], durations[r]);
+    // 4. Poll for Result (or wait for event)
+    const checkResultInterval = setInterval(() => {
+        if (window.currentSlotResult) {
+            clearInterval(checkResultInterval);
+            cancelAnimationFrame(frameId);
+            spinning = false;
+
+            finishAnimation(window.currentSlotResult);
         }
-    }
+    }, 100);
 
-    // Stop after longest duration + suspense delay
+    // Safety timeout (if server dies)
     setTimeout(() => {
-        // Stop spin sound
-        slotSpinSound.pause();
-        slotSpinSound.currentTime = 0;
+        if (spinning) {
+            clearInterval(checkResultInterval);
+            cancelAnimationFrame(frameId);
+            spinning = false;
+            alert("Connection error. Please check your prizes locally.");
+            location.reload();
+        }
+    }, 10000);
 
-        // Play result sound if won
+    function finishAnimation(resultData) {
+        console.log("[SLOT] Result received, stopping reels:", resultData);
+        const won = resultData.won;
+
+        // Generate visual targets based on SERVER result
+        const results = [];
         if (won) {
-            slotWinSound.play().catch(e => console.log('Slot win audio failed:', e));
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+            const match = 7; // Lucky 7
+            results.push(match, match, match);
         } else {
-            if (navigator.vibrate) navigator.vibrate([100]);
+            // Random non-matching
+            let r1 = Math.floor(Math.random() * 10) + 1;
+            let r2 = Math.floor(Math.random() * 10) + 1;
+            let r3 = Math.floor(Math.random() * 10) + 1;
+            // Ensure not matching
+            if (r1 === r2 && r2 === r3) r3 = (r3 % 10) + 1;
+            results.push(r1, r2, r3);
         }
 
-        // Send result to server
-        socket.emit('slot_result', { won: won });
+        // Final Snap Animation
+        const durations = [1000, 1500, 2000];
 
-    }, 3800); // 3800ms matches visual end (3000ms) + 800ms suspense
+        for (let r = 0; r < 3; r++) {
+            animateReelStop(r + 1, results[r], durations[r]);
+        }
+
+        // Show Final Message & Sound
+        setTimeout(() => {
+            slotSpinSound.pause();
+
+            if (msgEl) {
+                if (won) {
+                    msgEl.innerHTML = `<div style="color:#00FF00;font-size:28px;">🎉 恭喜中獎！</div><div style="font-size:36px;color:gold;margin-top:10px;">💰 $${resultData.prize}</div>`;
+                    slotWinSound.play().catch(e => { });
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+                } else {
+                    let failText = "💰 獎金";
+                    if (resultData.result_type == 'slots_full') failText = "😅 名額已滿";
+                    msgEl.innerHTML = `<div style="color:#FFA500;font-size:24px;">${failText}</div><div style="font-size:32px;color:white;margin-top:10px;">$${resultData.prize}</div>`;
+                    if (navigator.vibrate) navigator.vibrate([100]);
+                }
+            }
+
+            // Go to Result Screen
+            setTimeout(() => {
+                const overlay = document.getElementById('slot-overlay');
+                if (overlay) overlay.remove();
+                const resultScreen = document.getElementById('result-screen');
+                const raceScreen = document.getElementById('race-screen');
+                if (resultScreen && raceScreen) {
+                    raceScreen.style.display = 'none';
+                    resultScreen.style.display = 'block';
+                }
+            }, 4000);
+
+        }, 2500); // Wait for last reel
+    }
 }
 
-function animateReel(reelNum, finalValue, duration) {
+function animateReelStop(reelNum, finalValue, duration) {
     const reel = document.getElementById('reel' + reelNum);
-    let pos = 0;
-    const speed = 15;
-    const startTime = Date.now();
+    // Use CSS transition for smooth stop
+    // We were 'modding' the position, so we need to find the NEXT occurrence of finalValue
+    // Current transform is roughly known. Let's just snap for simplicity or do a clean spin-to-stop.
 
-    const animate = () => {
-        const elapsed = Date.now() - startTime;
-        if (elapsed < duration - 500) {
-            pos += speed;
-            reel.style.transform = `translateY(-${pos % 800}px)`; // 800 is height of 10 items * 80px
-            requestAnimationFrame(animate);
-        } else {
-            const finalPos = (finalValue - 1) * 80;
-            reel.style.transition = 'transform 0.5s ease-out';
-            reel.style.transform = `translateY(-${finalPos}px)`;
-        }
-    };
-    animate();
+    // Simpler: Just spin a specific distance from 0
+    // Reset transform to allow clean transition? No, might jump.
+    // Let's just do a simple transition from "current visual" (hard to track) 
+    // OR just spin X more times and land.
+
+    const finalPos = (finalValue - 1) * 80;
+    // Add extra spins
+    const totalDist = (800 * 2) + finalPos; // Spin 2 full times then land
+
+    // We need to re-apply the animation approach but targeted.
+    // Since we interrupted the infinite loop, we can just start a new transition
+    reel.style.transition = 'none';
+    reel.style.transform = 'translateY(0px)'; // Reset to start (might jump, but fast)
+
+    // Force reflow
+    void reel.offsetWidth;
+
+    reel.style.transition = `transform ${duration / 1000}s cubic-bezier(0.25, 0.1, 0.25, 1)`;
+    reel.style.transform = `translateY(-${totalDist}px)`;
+
+    // Wait for transition end to reset to 'canonical' position (0..800) so image stays
+    setTimeout(() => {
+        reel.style.transition = 'none';
+        reel.style.transform = `translateY(-${finalPos}px)`;
+    }, duration);
 }
