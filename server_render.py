@@ -1083,20 +1083,28 @@ def on_quiz_timeout(data):
 @socketio.on('request_slot_spin')
 def on_request_slot_spin(data):
     """Handle player request to spin the slot machine (Server Authoritative)"""
-    print(f"[SLOT_DEBUG] Request received from {request.sid}")
-    
-    if GAME_STATE['status'] != 'RACING':
-        print(f"[SLOT_DEBUG] Ignored: Game status is {GAME_STATE['status']} (Expected RACING)")
-        return
+    # Robustness Fix 1: Do NOT return early if status != RACING.
+    # We must respond to the client to avoid timeout, even if game ended.
     
     player_id = request.sid
     if player_id not in PLAYERS:
-        print(f"[SLOT_DEBUG] Ignored: Player ID {player_id} not found in PLAYERS")
         return
     
     player = PLAYERS[player_id]
-    print(f"[SLOT_DEBUG] Processing spin for player {player['name']} (ID: {player_id})")
-    
+
+    # Robustness Fix 2: Idempotency - If already done, return cached result immediately
+    if player.get('slot_done'):
+        print(f"[SLOT] Player {player['name']} requested spin but already done. Returning cached result.")
+        socketio.emit('slot_spin_result', {
+            'won': player.get('slot_prize', 200) > 200, # Simple inference
+            'prize': player.get('slot_prize', 200),
+            'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+            'player_id': player_id,
+            'player_name': player['name'],
+            'result_type': player.get('slot_result_type', 'cached_result') # Use saved type or default
+        }, room=player_id, namespace='/')
+        return
+
     # 1. Check Availability
     lucky_slots_remaining = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
     
@@ -1111,21 +1119,27 @@ def on_request_slot_spin(data):
     result_type = 'consolation'
     prize = 200
     
-    if lucky_slots_remaining > 0:
-        import random
-        # Chance = Remaining Slots / Waiting Players
-        chance = 1.0
-        if waiting_players > 0:
-             chance = lucky_slots_remaining / waiting_players
-        
-        # ROLL THE DIE
-        if random.random() < chance:
-             is_lucky_winner = True
-             result_type = 'lucky'
+    # Check if game is even valid for new spins
+    if GAME_STATE['status'] == 'RACING':
+        if lucky_slots_remaining > 0:
+            import random
+            # Chance = Remaining Slots / Waiting Players
+            chance = 1.0
+            if waiting_players > 0:
+                 chance = lucky_slots_remaining / waiting_players
+            
+            # ROLL THE DIE
+            if random.random() < chance:
+                 is_lucky_winner = True
+                 result_type = 'lucky'
+            else:
+                 result_type = 'missed_chance'
         else:
-             result_type = 'missed_chance'
+            result_type = 'slots_full'
     else:
-        result_type = 'slots_full'
+        # Game finished or paused, just give consolation to unstick client
+        result_type = 'game_ended_auto'
+        print(f"[SLOT] Request from {player['name']} after game end. Auto-assigning consolation.")
 
     # 4. Lock Result
     if is_lucky_winner:
@@ -1145,6 +1159,7 @@ def on_request_slot_spin(data):
 
     player['slot_prize'] = prize
     player['slot_done'] = True
+    player['slot_result_type'] = result_type # Save for cache/idempotency
     
     # 5. Send Recursive "Command" to Client to animate
     socketio.emit('slot_spin_result', {
