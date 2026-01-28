@@ -246,6 +246,9 @@ function spinReels(socket, data) {
                 }
             }
 
+            // Notify server that animation is complete so host can sync display
+            socket.emit('slot_animation_complete');
+
             // Go to Result Screen
             setTimeout(() => {
                 const overlay = document.getElementById('slot-overlay');

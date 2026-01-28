@@ -143,6 +143,7 @@ def bot_runner():
 
                             PLAYERS[bot_sid]['slot_prize'] = prize
                             PLAYERS[bot_sid]['slot_done'] = True
+                            PLAYERS[bot_sid]['slot_broadcasted'] = True
                             
                             # Bots don't need animation command, just broadcast result
                             socketio.emit('slot_result_final', {
@@ -430,6 +431,8 @@ def on_rejoin_waiting(data):
 
 @socketio.on('join_game')
 def on_join(data):
+    if GAME_STATE['status'] == 'FINISHED':
+        prepare_waiting_state('auto-reset after finished game for new join')
     if GAME_STATE['status'] != 'WAITING':
         emit('error', {'message': 'Game already started!'})
         return
@@ -500,6 +503,8 @@ def on_join(data):
         'progress': 0,
         'speed': 0,
         'finished': False,
+        'slot_done': False,
+        'slot_broadcasted': False,
         'dodge_until': 0  # Timestamp when dodge expires
     }
     emit('join_success', {'id': request.sid, 'name': name}, room=request.sid)
@@ -587,6 +592,8 @@ def on_add_bots(data):
             'progress': 0,
             'speed': 0,
             'finished': False,
+            'slot_done': False,
+            'slot_broadcasted': False,
             'is_bot': True
         }
         BOT_PLAYERS.append(bot_id)
@@ -644,6 +651,7 @@ def on_start_race(data):
         PLAYERS[pid]['finished'] = False
         PLAYERS[pid]['finish_order'] = 0
         PLAYERS[pid]['slot_done'] = False # Reset slot status
+        PLAYERS[pid]['slot_broadcasted'] = False
     
     # Start quiz spawning (will wait for countdown to finish)
     socketio.start_background_task(quiz_spawner)
@@ -670,6 +678,31 @@ MAX_RACE_TIME = 600
 
 # Debug Mode State
 GAME_STATE['debug_mode'] = False
+
+def prepare_waiting_state(reason=''):
+    """Reset state for a fresh waiting room without forcing a client reload."""
+    if reason:
+        print(f"Preparing waiting state: {reason}")
+    # Stop any background tasks
+    TASK_FLAGS['quiz_running'] = False
+    TASK_FLAGS['race_timer_running'] = False
+    TASK_FLAGS['bot_running'] = False
+
+    GAME_STATE['status'] = 'WAITING'
+    GAME_STATE['race_start_time'] = 0
+    GAME_STATE['pending_results_check'] = False
+    GAME_STATE['race_ended_flag'] = False
+    GAME_STATE['lucky_winners_count'] = 0
+
+    PLAYERS.clear()
+    BOT_PLAYERS.clear()
+    ACTIVE_EFFECTS.clear()
+    ITEMS.clear()
+
+    # Clear tracking data to prevent memory leaks
+    RATE_LIMIT.clear()
+    PLAYER_LAST_ACTIVE.clear()
+    PLAYER_QUESTIONS.clear()
 
 def is_controller(sid):
     return HOST_CONTROL['controller_sid'] == sid
@@ -1169,6 +1202,7 @@ def on_request_slot_spin(data=None):
     player['slot_prize'] = prize
     player['slot_done'] = True
     player['slot_result_type'] = result_type # Save for cache/idempotency
+    player['slot_broadcasted'] = False
     
     # 5. Send Recursive "Command" to Client to animate
     socketio.emit('slot_spin_result', {
@@ -1180,24 +1214,14 @@ def on_request_slot_spin(data=None):
         'result_type': result_type
     }, room=player_id, namespace='/') # Only to the player first
     
-    # 6. Global Broadcast (optional, or wait for client to finish animation? 
-    # Better to broadcast result now so host updates, client just animates)
-    socketio.emit('slot_result_broadcast', {
-        'player_name': player['name'],
-        'won': is_lucky_winner,
-        'prize': prize,
-        'result_type': result_type,
-        'slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
-        'player_id': player_id
-    }, namespace='/')
-    
-    # 7. Check if we need to auto-finish others
+    # 6. Check if we need to auto-finish others
     if GAME_STATE.get('lucky_winners_count', 0) >= GAME_STATE.get('lucky_max_winners', 3):
         # Find all players who finished > 3rd but haven't completed slot
         for pid, p in PLAYERS.items():
             if p.get('finish_order', 0) > 3 and not p.get('slot_done'):
                 p['slot_prize'] = 200
                 p['slot_done'] = True
+                p['slot_broadcasted'] = True
                 print(f"[SLOT EXHAUSTED] Auto-assigning $200 to {p['name']}")
                 socketio.emit('slot_prizes_exhausted', {
                     'prize': 200,
@@ -1207,6 +1231,33 @@ def on_request_slot_spin(data=None):
 
     # 8. Update Results (delayed check handled by client finish or background task)
     calculate_and_emit_results()
+
+
+@socketio.on('slot_animation_complete')
+def on_slot_animation_complete(data=None):
+    """Broadcast slot result only after client finishes animation."""
+    player_id = request.sid
+    player = PLAYERS.get(player_id)
+    if not player:
+        return
+    if not player.get('slot_done'):
+        return
+    if player.get('slot_broadcasted'):
+        return
+
+    prize = player.get('slot_prize', 200)
+    result_type = player.get('slot_result_type', 'consolation')
+    won = prize > 200
+    player['slot_broadcasted'] = True
+
+    socketio.emit('slot_result_final', {
+        'player_name': player['name'],
+        'won': won,
+        'prize': prize,
+        'result_type': result_type,
+        'slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+        'player_id': player_id
+    }, namespace='/')
 
 
 @socketio.on('shake_event')
@@ -1318,6 +1369,7 @@ def on_shake(data):
                 print(f"[SLOT SKIP] No lucky prizes left, giving participation prize to {PLAYERS[request.sid]['name']}")
                 PLAYERS[request.sid]['slot_prize'] = 200
                 PLAYERS[request.sid]['slot_done'] = True
+                PLAYERS[request.sid]['slot_broadcasted'] = True
                 socketio.emit('slot_result_final', {
                     'won': False,
                     'prize': 200,
@@ -1375,6 +1427,7 @@ def on_shake(data):
                     
                     # Mark slot as done
                     PLAYERS[bot_sid]['slot_done'] = True
+                    PLAYERS[bot_sid]['slot_broadcasted'] = True
                     
                     socketio.emit('slot_result_final', {
                         'won': is_winner,
