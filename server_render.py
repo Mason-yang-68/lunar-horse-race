@@ -1149,7 +1149,7 @@ def on_request_slot_spin(data):
         'player_id': player_id,
         'player_name': player['name'],
         'result_type': result_type
-    }, room=player_id) # Only to the player first
+    }, room=player_id, namespace='/') # Only to the player first
     
     # 6. Global Broadcast (optional, or wait for client to finish animation? 
     # Better to broadcast result now so host updates, client just animates)
