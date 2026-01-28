@@ -17,7 +17,8 @@ BOT_PLAYERS = []  # List of bot player IDs
 GAME_STATE = {
     'status': 'WAITING', # WAITING, RACING, FINISHED
     'total_prize': 0,
-    'theme': DEFAULT_THEME  # Current theme ID
+    'theme': DEFAULT_THEME,  # Current theme ID
+    'pending_results_check': False
 }
 ITEMS = {} # { item_id: { type: 'food'|'hardware', position: {x, y}, active: True } }
 ACTIVE_EFFECTS = {} # { sid: { type: 'food'|'hardware', end_time: timestamp } }
@@ -147,7 +148,7 @@ def bot_runner():
                                 'player_name': PLAYERS[bot_sid]['name']
                             }, namespace='/')
                             
-                            from server_render import calculate_and_emit_results
+                            # Corrected call: direct function call
                             calculate_and_emit_results()
 
                         socketio.start_background_task(bot_slot_play_runner, bot_id, win_prob)
@@ -159,7 +160,6 @@ def bot_runner():
                         # All finished
                         print(f"BOT: All {len(PLAYERS)} players finished - calculating results!")
                         # Use calculate_and_emit_results instead of on_calculate_results to use new delay logic
-                        from server_render import calculate_and_emit_results
                         socketio.start_background_task(calculate_and_emit_results)
                 
                 # Broadcast update
@@ -1534,6 +1534,15 @@ def calculate_and_emit_results():
         
         if waiting_for_slots:
             print(f"[CALC_RESULTS] Waiting for slots! (LUCKY_FULL={lucky_full})")
+            # Schedule a re-check so results still get emitted once all slots are done
+            if not GAME_STATE.get('pending_results_check'):
+                GAME_STATE['pending_results_check'] = True
+                def delayed_results_check():
+                    eventlet.sleep(2)
+                    GAME_STATE['pending_results_check'] = False
+                    if GAME_STATE['status'] == 'RACING':
+                        calculate_and_emit_results()
+                socketio.start_background_task(delayed_results_check)
             return # Do not emit game_results yet
         else:
             print("[CALC_RESULTS] Logic says PROCEED to results.")
@@ -1582,6 +1591,7 @@ def calculate_and_emit_results():
     
     # Explicitly stop all background tasks
     GAME_STATE['status'] = 'FINISHED'
+    GAME_STATE['pending_results_check'] = False
     TASK_FLAGS['quiz_running'] = False
     TASK_FLAGS['race_timer_running'] = False
     TASK_FLAGS['bot_running'] = False
@@ -1608,6 +1618,7 @@ def on_reset():
     GAME_STATE['debug_mode'] = False  # Disable debug mode on reset
     GAME_STATE['lucky_winners_count'] = 0 # Reset lucky winners
     GAME_STATE['race_start_time'] = 0
+    GAME_STATE['pending_results_check'] = False
     # Preserve theme, but maybe reset prizes if they were custom? 
     # Usually prizes are re-set on start_race, so it's fine.
     
