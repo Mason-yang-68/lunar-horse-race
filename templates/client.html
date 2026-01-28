@@ -903,7 +903,7 @@
                 // Auto-Run for 3 seconds
                 let boostCount = 0;
                 const boostInterval = setInterval(() => {
-                    socket.emit('shake');
+                    socket.emit('shake_event', { intensity: 200 });
                     boostCount++;
                     if (boostCount >= 15) { // 5 shakes per second * 3 seconds
                         clearInterval(boostInterval);
@@ -1045,6 +1045,7 @@
                     if (response == 'granted') {
                         document.getElementById('permission-screen').style.display = 'none';
                         document.getElementById('wait-screen').style.display = 'block';
+                        hideTapButtonForIOS();
                         startListening();
                     } else {
                         alert("Permission denied. You can still tap the button to play!");
@@ -1117,6 +1118,16 @@
                     btn.style.transform = 'translateY(0)';
                     btn.style.boxShadow = '0 10px 0 #B8860B, 0 10px 10px rgba(0,0,0,0.3)';
                 }, 100);
+            }
+        }
+
+        function hideTapButtonForIOS() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (!isIOS) return;
+            const btn = document.querySelector('.shake-btn');
+            if (btn) {
+                btn.style.display = 'none';
             }
         }
 

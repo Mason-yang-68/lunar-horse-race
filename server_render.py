@@ -209,6 +209,8 @@ def on_set_theme(data):
     GAME_STATE['theme'] = theme_id
     print(f"[THEME] Theme set to: {theme['name']} ({theme_id})")
     print(f"[THEME] GAME_STATE['theme'] is now: {GAME_STATE['theme']}")
+    PLAYER_QUESTIONS.clear()
+    USED_QUESTIONS_BY_THEME[theme_id] = set()
     
     # Broadcast theme change to all clients
     socketio.emit('theme_changed', {
@@ -703,6 +705,7 @@ def prepare_waiting_state(reason=''):
     RATE_LIMIT.clear()
     PLAYER_LAST_ACTIVE.clear()
     PLAYER_QUESTIONS.clear()
+    USED_QUESTIONS_BY_THEME.clear()
 
 def is_controller(sid):
     return HOST_CONTROL['controller_sid'] == sid
@@ -817,6 +820,8 @@ def race_timer():
 
 # Track which questions each player has seen
 PLAYER_QUESTIONS = {}
+# Track which questions have been asked globally per theme
+USED_QUESTIONS_BY_THEME = {}
 
 def quiz_spawner():
     """Background task to send quiz questions to random players during race"""
@@ -884,23 +889,28 @@ def quiz_spawner():
         target_player = random.choice(eligible_players)
         player_id = target_player['id']
         
-        # Initialize player's question history if needed
-        if player_id not in PLAYER_QUESTIONS:
-            PLAYER_QUESTIONS[player_id] = []
-        
         # Get questions based on current theme
         current_theme = GAME_STATE.get('theme', DEFAULT_THEME)
         theme_questions = get_questions(current_theme)
         print(f"[QUIZ] Using theme: {current_theme}, total questions: {len(theme_questions)}")
         
-        # Pick a question they haven't seen (or random if all seen)
-        available_qs = [i for i, q in enumerate(theme_questions) if i not in PLAYER_QUESTIONS[player_id]]
-        if not available_qs:
-            available_qs = list(range(len(theme_questions)))  # Reset if all used
+        # Initialize tracking for global and player history
+        if player_id not in PLAYER_QUESTIONS:
             PLAYER_QUESTIONS[player_id] = []
+        if current_theme not in USED_QUESTIONS_BY_THEME:
+            USED_QUESTIONS_BY_THEME[current_theme] = set()
+        used_questions = USED_QUESTIONS_BY_THEME[current_theme]
+        
+        # Pick a question globally unused (reset only after all questions used)
+        available_qs = [i for i in range(len(theme_questions)) if i not in used_questions]
+        if not available_qs:
+            used_questions.clear()
+            available_qs = list(range(len(theme_questions)))
+            PLAYER_QUESTIONS.clear()
         
         q_index = random.choice(available_qs)
         question = theme_questions[q_index]
+        used_questions.add(q_index)
         PLAYER_QUESTIONS[player_id].append(q_index)
         
         # Randomize answer order
@@ -1583,9 +1593,11 @@ def calculate_and_emit_results():
                     p['finish_order'] = 999 # Rank them last
                     p['slot_done'] = True
                     p['slot_prize'] = 200
+                    p['slot_broadcasted'] = True
                 elif p.get('finish_order', 0) > 3 and not p.get('slot_done'):
                     p['slot_done'] = True
                     p['slot_prize'] = 200
+                    p['slot_broadcasted'] = True
             
             # Re-sort because we modified finished status
             sorted_players = sorted(PLAYERS.values(), key=lambda x: (
@@ -1601,7 +1613,7 @@ def calculate_and_emit_results():
             waiting_for_slots = False
             for p in sorted_players:
                 if p.get('finished') and p.get('finish_order', 0) > 3:
-                     if not p.get('slot_done', False):
+                     if not p.get('slot_broadcasted', False):
                         waiting_for_slots = True
                         break
         
