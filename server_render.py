@@ -1081,13 +1081,22 @@ def on_quiz_timeout(data):
 
 
 @socketio.on('request_slot_spin')
-def on_request_slot_spin(data):
+def on_request_slot_spin(data=None):
     """Handle player request to spin the slot machine (Server Authoritative)"""
     # Robustness Fix 1: Do NOT return early if status != RACING.
     # We must respond to the client to avoid timeout, even if game ended.
     
     player_id = request.sid
     if player_id not in PLAYERS:
+        print(f"[SLOT] Request from unknown player {player_id[:8]}..., sending fallback result.")
+        socketio.emit('slot_spin_result', {
+            'won': False,
+            'prize': 200,
+            'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+            'player_id': player_id,
+            'player_name': 'Unknown',
+            'result_type': 'player_missing'
+        }, room=player_id, namespace='/')
         return
     
     player = PLAYERS[player_id]
