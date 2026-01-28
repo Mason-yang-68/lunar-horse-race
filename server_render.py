@@ -1083,14 +1083,19 @@ def on_quiz_timeout(data):
 @socketio.on('request_slot_spin')
 def on_request_slot_spin(data):
     """Handle player request to spin the slot machine (Server Authoritative)"""
+    print(f"[SLOT_DEBUG] Request received from {request.sid}")
+    
     if GAME_STATE['status'] != 'RACING':
+        print(f"[SLOT_DEBUG] Ignored: Game status is {GAME_STATE['status']} (Expected RACING)")
         return
     
     player_id = request.sid
     if player_id not in PLAYERS:
+        print(f"[SLOT_DEBUG] Ignored: Player ID {player_id} not found in PLAYERS")
         return
     
     player = PLAYERS[player_id]
+    print(f"[SLOT_DEBUG] Processing spin for player {player['name']} (ID: {player_id})")
     
     # 1. Check Availability
     lucky_slots_remaining = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
