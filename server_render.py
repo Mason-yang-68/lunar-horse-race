@@ -546,19 +546,19 @@ def on_rejoin(data):
         emit('rejoin_failed', {'message': '找不到玩家'})
         return
     
-    # Optional: verify device_id matches (log warning if mismatch but allow)
-    if device_id and old_player.get('device_id') and device_id != old_player.get('device_id'):
-        print(f"WARNING: Player {name} rejoining with different device_id!")
+    # Verify device_id matches (reject mismatches to prevent takeover)
+    if old_player.get('device_id'):
+        if not device_id or device_id != old_player.get('device_id'):
+            print(f"WARNING: Player {name} rejoining with invalid device_id!")
+            emit('rejoin_failed', {'message': 'device_id_mismatch'})
+            return
     
     # Transfer player data to new session
     new_id = request.sid
     old_player['id'] = new_id
     old_player['disconnected'] = False
     
-    # IMPORTANT: Clear any blocking states so player can move immediately
-    old_player['freeze_until'] = 0
-    old_player['answering_until'] = 0
-    old_player['quiz_cooldown_until'] = 0
+    # Keep blocking states to prevent penalty bypass on reconnect
     
     # Move player to new session ID
     if old_id != new_id:
