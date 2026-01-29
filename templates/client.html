@@ -85,6 +85,37 @@
             margin: 10px;
         }
 
+        .name-picker {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 16px auto;
+            max-width: 360px;
+        }
+
+        .name-choice {
+            background: linear-gradient(145deg, #FFD700, #DAA520);
+            border: 2px solid #fff;
+            border-radius: 16px;
+            color: #8B0000;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px 16px;
+            min-width: 90px;
+        }
+
+        .name-choice.selected {
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.8);
+            transform: translateY(-1px);
+        }
+
+        .name-choice.secondary {
+            background: linear-gradient(145deg, #2196F3, #1976D2);
+            color: #fff;
+        }
+
         @keyframes fadeOut {
             0% {
                 opacity: 1;
@@ -207,7 +238,21 @@
             <!-- Avatars injected here -->
         </div>
         <input type="hidden" id="selected-avatar" value="horse1">
-        <input type="text" id="player-name" placeholder="輸入你的名字" style="width: 80%; max-width: 300px;">
+        <div id="name-input-wrapper">
+            <input type="text" id="player-name" placeholder="輸入你的名字" style="width: 80%; max-width: 300px;">
+        </div>
+        <div id="ios-name-picker" style="display: none;">
+            <div style="color:#fff;font-size:14px;margin-top:8px;">iOS 可直接點選名字避免文字框</div>
+            <div class="name-picker">
+                <button class="name-choice" data-name="玩家1">玩家1</button>
+                <button class="name-choice" data-name="玩家2">玩家2</button>
+                <button class="name-choice" data-name="玩家3">玩家3</button>
+                <button class="name-choice" data-name="玩家4">玩家4</button>
+                <button class="name-choice" data-name="玩家5">玩家5</button>
+                <button class="name-choice" data-name="玩家6">玩家6</button>
+                <button class="name-choice secondary" data-random="true">隨機名字</button>
+            </div>
+        </div>
         <br><br>
         <button class="btn" onclick="joinGame()">加入比賽 / JOIN</button>
         <br><br>
@@ -347,6 +392,16 @@
             console.log('All inputs disabled for game');
         }
 
+        function lockLoginInputs() {
+            const nameInput = document.getElementById('player-name');
+            if (nameInput) {
+                nameInput.blur();
+                nameInput.setAttribute('readonly', 'true');
+                nameInput.setAttribute('disabled', 'true');
+            }
+            clearUndoHistory();
+        }
+
         // Call on visibility change and page load
         document.addEventListener('visibilitychange', clearUndoHistory);
         window.addEventListener('load', clearUndoHistory);
@@ -411,6 +466,11 @@
             reconnectionAttempts: 10
         });
 
+        function isIOSDevice() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        }
+
         // ========= Device ID for reconnection =========
         function getDeviceId() {
             let id = localStorage.getItem('horse_race_device_id');
@@ -460,8 +520,42 @@
         let isWaiting = false;  // Track waiting state for reconnection
         let disconnectOverlay = null;
 
+        function setupNamePicker() {
+            const nameInputWrapper = document.getElementById('name-input-wrapper');
+            const nameInput = document.getElementById('player-name');
+            const picker = document.getElementById('ios-name-picker');
+            if (!picker || !nameInput) return;
+
+            if (isIOSDevice()) {
+                if (nameInputWrapper) nameInputWrapper.style.display = 'none';
+                picker.style.display = 'block';
+                nameInput.setAttribute('readonly', 'true');
+            }
+
+            const buttons = picker.querySelectorAll('.name-choice');
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    let chosenName = button.dataset.name;
+                    if (button.dataset.random === 'true') {
+                        const randomNumber = Math.floor(Math.random() * 90) + 10;
+                        chosenName = `玩家${randomNumber}`;
+                    }
+                    nameInput.value = chosenName;
+                    buttons.forEach(btn => btn.classList.remove('selected'));
+                    button.classList.add('selected');
+                });
+            });
+
+            if (isIOSDevice()) {
+                const defaultButton = picker.querySelector('[data-name="玩家1"]');
+                if (defaultButton) defaultButton.click();
+            }
+        }
+
         // Restore state on page load (before socket connect triggers)
         const hadSavedState = loadGameState();
+
+        setupNamePicker();
 
         // Show disconnect overlay
         function showDisconnectOverlay() {
@@ -561,10 +655,16 @@
             isRacing = true;
             isWaiting = false;
             saveGameState();
+            disableInputsForGame();
+            clearUndoHistory();
 
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
             startListening();
-            hideTapButtonForIOS();
+            if (isIOSDevice() && !motionPermissionGranted) {
+                showTapButtonForIOS();
+            } else {
+                hideTapButtonForIOS();
+            }
 
             // Show success message
             const msg = document.createElement('div');
@@ -615,6 +715,7 @@
             isWaiting = true;
             isRacing = false;
             saveGameState();
+            lockLoginInputs();
 
             // Show success message
             const msg = document.createElement('div');
@@ -656,6 +757,7 @@
             isWaiting = true;  // Mark that we're in waiting state
             saveGameState();  // Persist state for page reload
             resumeClientAudio();
+            lockLoginInputs();
 
             // Show player's selected avatar in wait screen
             const avatarImg = document.getElementById('wait-avatar-img');
@@ -693,7 +795,11 @@
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
             clearUndoHistory();
-            hideTapButtonForIOS();
+            if (isIOSDevice() && !motionPermissionGranted) {
+                showTapButtonForIOS();
+            } else {
+                hideTapButtonForIOS();
+            }
 
             // Vibrate to signal start
             vibrate([100, 50, 100]);
@@ -1066,6 +1172,7 @@
                         alert("Permission denied. You can still tap the button to play!");
                         document.getElementById('permission-screen').style.display = 'none';
                         document.getElementById('wait-screen').style.display = 'block';
+                        showTapButtonForIOS();
                     }
                 })
                 .catch(console.error);
@@ -1136,10 +1243,15 @@
             }
         }
 
+        function showTapButtonForIOS() {
+            const btn = document.querySelector('.shake-btn');
+            if (btn) {
+                btn.style.display = 'inline-block';
+            }
+        }
+
         function hideTapButtonForIOS(force = false) {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            if (!isIOS) return;
+            if (!isIOSDevice()) return;
             if (!force && !motionPermissionGranted) return;
             const btn = document.querySelector('.shake-btn');
             if (btn) {
