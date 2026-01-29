@@ -27,6 +27,31 @@ window.AudioManager = (function () {
     const fireworksSound = new Audio('/static/audio/new-years-eve-in-peru-fireworks-fire-crackers-and-rockets-to-celebrate-the-new-year-pisco-peru-2012-17692.mp3');
     fireworksSound.volume = 0.7;
 
+    // New host SFX placeholders (replace files in /static/audio)
+    const boostSound = new Audio('/static/audio/host_boost.mp3');
+    boostSound.volume = 0.7;
+
+    const dizzySound = new Audio('/static/audio/host_dizzy.mp3');
+    dizzySound.volume = 0.7;
+
+    const finishSound = new Audio('/static/audio/host_finish.mp3');
+    finishSound.volume = 0.8;
+
+    const overtakeSound = new Audio('/static/audio/host_overtake.mp3');
+    overtakeSound.volume = 0.7;
+
+    const allAudioElements = [
+        waitingMusic,
+        racingMusic,
+        correctSound,
+        wrongSound,
+        fireworksSound,
+        boostSound,
+        dizzySound,
+        finishSound,
+        overtakeSound
+    ];
+
     function playTone(freq, type, duration, volume = 0.3) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
@@ -42,6 +67,34 @@ window.AudioManager = (function () {
         return osc;
     }
 
+    function playAudioWithFallback(audio, fallback) {
+        audio.currentTime = 0;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+                if (fallback) fallback();
+            });
+        }
+    }
+
+    function unlockAudioElements() {
+        allAudioElements.forEach((audio) => {
+            const originalVolume = audio.volume;
+            audio.muted = true;
+            audio.volume = 0;
+            audio.play()
+                .then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                })
+                .catch(() => { })
+                .finally(() => {
+                    audio.muted = false;
+                    audio.volume = originalVolume;
+                });
+        });
+    }
+
     function stopAllMusic() {
         waitingMusic.pause();
         racingMusic.pause();
@@ -55,6 +108,7 @@ window.AudioManager = (function () {
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
+            unlockAudioElements();
         },
 
         startWaitingMusic: function () {
@@ -118,18 +172,19 @@ window.AudioManager = (function () {
 
         playWinSound: function () {
             stopAllMusic();
-            fireworksSound.currentTime = 0;
-            fireworksSound.play().catch(e => { });
+            playAudioWithFallback(fireworksSound, () => {
+                playTone(523.25, 'sine', 0.2, 0.4);
+                setTimeout(() => playTone(659.25, 'sine', 0.2, 0.4), 200);
+                setTimeout(() => playTone(783.99, 'sine', 0.25, 0.4), 400);
+            });
         },
 
         playCorrectSound: function () {
-            correctSound.currentTime = 0;
-            correctSound.play().catch(e => { });
+            playAudioWithFallback(correctSound, () => playTone(880, 'sine', 0.12, 0.3));
         },
 
         playWrongSound: function () {
-            wrongSound.currentTime = 0;
-            wrongSound.play().catch(e => { });
+            playAudioWithFallback(wrongSound, () => playTone(220, 'triangle', 0.2, 0.3));
         },
 
         playShortWinSound: function () {
@@ -141,8 +196,11 @@ window.AudioManager = (function () {
 
         playVictoryInterlude: function () {
             stopAllMusic();
-            fireworksSound.currentTime = 0;
-            fireworksSound.play().catch(e => { });
+            playAudioWithFallback(fireworksSound, () => {
+                playTone(523.25, 'sine', 0.2, 0.4);
+                setTimeout(() => playTone(659.25, 'sine', 0.2, 0.4), 200);
+                setTimeout(() => playTone(783.99, 'sine', 0.25, 0.4), 400);
+            });
 
             // Resume racing music after 5 seconds if still racing check is passed in or handled nicely
             // For now, we return a promise or setup a timeout callback? 
@@ -170,6 +228,36 @@ window.AudioManager = (function () {
                 playTone(392, 'sawtooth', 0.15, 0.2);
                 setTimeout(() => playTone(329.63, 'sawtooth', 0.15, 0.2), 120);
             }
+        },
+
+        playBoostSound: function () {
+            playAudioWithFallback(boostSound, () => {
+                playTone(440, 'sine', 0.12, 0.35);
+                setTimeout(() => playTone(660, 'sine', 0.12, 0.35), 120);
+            });
+        },
+
+        playDizzySound: function () {
+            playAudioWithFallback(dizzySound, () => {
+                playTone(330, 'triangle', 0.18, 0.3);
+                setTimeout(() => playTone(220, 'triangle', 0.25, 0.3), 160);
+            });
+        },
+
+        playFinishSound: function () {
+            stopAllMusic();
+            playAudioWithFallback(finishSound, () => {
+                playTone(523.25, 'sine', 0.2, 0.45);
+                setTimeout(() => playTone(659.25, 'sine', 0.2, 0.45), 200);
+                setTimeout(() => playTone(880, 'sine', 0.3, 0.5), 420);
+            });
+        },
+
+        playOvertakeSound: function () {
+            playAudioWithFallback(overtakeSound, () => {
+                playTone(392, 'sawtooth', 0.1, 0.3);
+                setTimeout(() => playTone(523.25, 'sawtooth', 0.12, 0.3), 100);
+            });
         },
 
         playTone: playTone // Expose generic tone player if needed

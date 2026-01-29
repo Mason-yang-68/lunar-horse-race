@@ -316,6 +316,15 @@ def on_host_register(data=None):
             'is_controller': True,
             'message': '您是主控制者'
         })
+        # Always sync current state so controller sees existing players immediately
+        emit('update_player_list', list(PLAYERS.values()))
+        emit('game_state_sync', {
+            'status': GAME_STATE['status'],
+            'total_prize': GAME_STATE.get('total_prize', 0),
+            'players': [{'id': p['id'], 'name': p['name'], 'progress': p.get('progress', 0),
+                        'avatar_id': p.get('avatar_id', 'horse1'), 'finished': p.get('finished', False)}
+                       for p in PLAYERS.values()]
+        })
     else:
         # Controller is still connected - become a viewer
         if sid not in HOST_CONTROL['viewers']:

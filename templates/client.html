@@ -547,7 +547,9 @@
             console.log('Rejoin successful!', data);
             console.log('Old myId:', myId, '-> New myId:', data.id);
             myId = data.id;
+            myId = data.id;
             hideDisconnectOverlay();
+            resumeClientAudio();
 
             // CRITICAL: Switch UI to race screen (page may have reloaded)
             document.getElementById('login-screen').style.display = 'none';
@@ -590,7 +592,9 @@
         socket.on('rejoin_waiting_success', (data) => {
             console.log('Rejoin waiting successful!', data);
             myId = data.id;
+            myId = data.id;
             hideDisconnectOverlay();
+            resumeClientAudio();
 
             // CRITICAL: Switch UI to wait screen (page may have reloaded)
             document.getElementById('login-screen').style.display = 'none';
@@ -651,6 +655,7 @@
             }
             isWaiting = true;  // Mark that we're in waiting state
             saveGameState();  // Persist state for page reload
+            resumeClientAudio();
 
             // Show player's selected avatar in wait screen
             const avatarImg = document.getElementById('wait-avatar-img');
@@ -734,30 +739,33 @@
         // ========================================
 
         // Quiz alert sound (using Web Audio API for better iOS compatibility)
-        let audioContext = null;
+        function resumeClientAudio() {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
         function playQuizAlertSound() {
             try {
-                if (!audioContext) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
+                resumeClientAudio();
 
                 // Play a "ding" alert sound
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
 
                 oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                gainNode.connect(audioCtx.destination);
 
                 // Ding sound: high frequency beeps
-                oscillator.frequency.setValueAtTime(880, audioContext.currentTime);  // A5 note
-                oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1);  // Higher
-                oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.2);  // Back
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);  // A5 note
+                oscillator.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.1);  // Higher
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);  // Back
 
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
 
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.5);
 
                 console.log('Quiz alert sound played');
             } catch (e) {

@@ -21,6 +21,10 @@ window.HostLogic = (function () {
         socket = socketInstance;
         setupSocketListeners();
         setupInputListeners();
+        if (socket.connected) {
+            socket.emit('host_register');
+            socket.emit('get_theme');
+        }
     }
 
     function setupInputListeners() {
@@ -147,7 +151,7 @@ window.HostLogic = (function () {
                         leaderInitialized = true;
                     } else if (newLeader.id !== currentLeaderId) {
                         currentLeaderId = newLeader.id;
-                        if (window.AudioManager) window.AudioManager.playCheerSound();
+                        if (window.AudioManager) window.AudioManager.playOvertakeSound();
                     }
                 }
             }
@@ -219,9 +223,9 @@ window.HostLogic = (function () {
             if (window.showQuizResultEffect) window.showQuizResultEffect(data);
 
             if (data.correct) {
-                if (window.AudioManager) window.AudioManager.playCorrectSound();
+                if (window.AudioManager) window.AudioManager.playBoostSound();
             } else {
-                if (window.AudioManager) window.AudioManager.playWrongSound();
+                if (window.AudioManager) window.AudioManager.playDizzySound();
             }
         });
 
@@ -236,7 +240,7 @@ window.HostLogic = (function () {
 
             // Audio
             if (window.AudioManager) {
-                if (data.rank === 1) window.AudioManager.playVictoryInterlude();
+                if (data.rank === 1) window.AudioManager.playFinishSound();
                 else if (data.rank <= 3) window.AudioManager.playShortWinSound();
             }
 
