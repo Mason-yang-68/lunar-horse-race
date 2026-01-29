@@ -86,6 +86,7 @@ window.HostLogic = (function () {
                 if (raceScreen) raceScreen.style.display = 'none';
                 if (resultScreen) resultScreen.style.display = 'none';
                 if (window.updateOvalTrack) window.updateOvalTrack(players, 'oval-track');
+                if (window.AudioManager) window.AudioManager.startWaitingMusic();
             } else if (data.status === 'FINISHED') {
                 if (setupScreen) setupScreen.style.display = 'none';
                 if (raceScreen) raceScreen.style.display = 'none';
