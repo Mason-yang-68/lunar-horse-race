@@ -1347,6 +1347,8 @@ def on_shake(data):
     move_amount *= speed_multiplier
     
     MAX_PROGRESS_PER_SHAKE = 5.0
+    if move_amount > MAX_PROGRESS_PER_SHAKE:
+        move_amount = MAX_PROGRESS_PER_SHAKE
     PLAYERS[request.sid]['progress'] += move_amount
     
     # Debug Mode 20x Speed
