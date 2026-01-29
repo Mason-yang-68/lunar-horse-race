@@ -59,7 +59,7 @@ THEMES = {
             {"question": "聽起來最兇的鉗子？", "options": ["尖嘴鉗", "老虎鉗", "鯉魚鉗"], "answer": 1},
             {"question": "什麼釘子最難拔？", "options": ["鐵釘", "鋼釘", "眼中釘"], "answer": 2},
             {"question": "什麼桶子永遠裝不滿？", "options": ["水桶", "馬桶", "垃圾桶"], "answer": 1},
-            {"question": "黏住不聽話的嘴巴用？", "options": ["強力快乾膠", "口紅膠", "雙面膠"], "answer": 0},
+            {"question": "???????????????", "options": ["????", "??", "??"], "answer": 0},
             {"question": "活動板手的特技？", "options": ["調整開口", "跳舞", "變身"], "answer": 0},
             {"question": "鑽牆鑽到水管會？", "options": ["噴水", "噴錢", "噴石油"], "answer": 0},
             {"question": "買油漆老闆通常問？", "options": ["水性還油性", "加辣嗎", "喝溫的"], "answer": 0},
