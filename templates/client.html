@@ -399,6 +399,16 @@
                 nameInput.setAttribute('readonly', 'true');
                 nameInput.setAttribute('disabled', 'true');
             }
+            const nameInputWrapper = document.getElementById('name-input-wrapper');
+            if (nameInputWrapper) {
+                nameInputWrapper.style.display = 'none';
+                nameInputWrapper.innerHTML = '';
+            }
+            const picker = document.getElementById('ios-name-picker');
+            if (picker) {
+                picker.style.display = 'none';
+                picker.innerHTML = '';
+            }
             clearUndoHistory();
         }
 
@@ -656,15 +666,12 @@
             isWaiting = false;
             saveGameState();
             disableInputsForGame();
+            lockLoginInputs();
             clearUndoHistory();
 
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
             startListening();
-            if (isIOSDevice() && !motionPermissionGranted) {
-                showTapButtonForIOS();
-            } else {
-                hideTapButtonForIOS();
-            }
+            updateTapButtonVisibility();
 
             // Show success message
             const msg = document.createElement('div');
@@ -794,12 +801,9 @@
 
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
+            lockLoginInputs();
             clearUndoHistory();
-            if (isIOSDevice() && !motionPermissionGranted) {
-                showTapButtonForIOS();
-            } else {
-                hideTapButtonForIOS();
-            }
+            updateTapButtonVisibility();
 
             // Vibrate to signal start
             vibrate([100, 50, 100]);
@@ -1157,6 +1161,7 @@
 
         const motionPermissionKey = 'motion_permission_granted';
         let motionPermissionGranted = localStorage.getItem(motionPermissionKey) === 'true';
+        let motionEventsSeen = false;
 
         function requestPermission() {
             DeviceMotionEvent.requestPermission()
@@ -1166,8 +1171,8 @@
                         localStorage.setItem(motionPermissionKey, 'true');
                         document.getElementById('permission-screen').style.display = 'none';
                         document.getElementById('wait-screen').style.display = 'block';
-                        hideTapButtonForIOS(true);
                         startListening();
+                        updateTapButtonVisibility();
                     } else {
                         alert("Permission denied. You can still tap the button to play!");
                         document.getElementById('permission-screen').style.display = 'none';
@@ -1183,6 +1188,10 @@
 
         function startListening() {
             window.addEventListener('devicemotion', (event) => {
+                if (!motionEventsSeen) {
+                    motionEventsSeen = true;
+                    updateTapButtonVisibility();
+                }
                 const currentTime = Date.now();
                 if ((currentTime - lastTime) > 100) { // Throttle 100ms
                     const acc = event.accelerationIncludingGravity;
@@ -1256,6 +1265,15 @@
             const btn = document.querySelector('.shake-btn');
             if (btn) {
                 btn.style.display = 'none';
+            }
+        }
+
+        function updateTapButtonVisibility() {
+            if (!isIOSDevice()) return;
+            if (motionEventsSeen) {
+                hideTapButtonForIOS(true);
+            } else {
+                showTapButtonForIOS();
             }
         }
 
