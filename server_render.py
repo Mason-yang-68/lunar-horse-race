@@ -613,6 +613,10 @@ def on_add_bots(data):
 
 @socketio.on('start_race')
 def on_start_race(data):
+    if not is_controller(request.sid):
+        print(f"Unauthorized start_race attempt from {request.sid}")
+        emit('error', {'message': 'Unauthorized'})
+        return
     try:
         # Check if top3 prizes are provided
         top3_prizes = data.get('top3_prizes')
