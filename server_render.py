@@ -1038,9 +1038,21 @@ def on_quiz_answer(data):
     player_id = request.sid
     if player_id not in PLAYERS:
         return
-    
+
+    player = PLAYERS[player_id]
+    current_time = time.time()
+
     question_id = data.get('question_id')
     answer_index = data.get('answer')
+
+    # Reject answers if player is not currently answering or question_id mismatches
+    if player.get('answering_until', 0) <= current_time:
+        return
+    try:
+        if int(question_id) != int(player.get('current_question_id', -1)):
+            return
+    except (ValueError, TypeError):
+        return
     
     # Get questions based on current theme
     current_theme = GAME_STATE.get('theme', DEFAULT_THEME)
@@ -1061,9 +1073,6 @@ def on_quiz_answer(data):
             PLAYERS[player_id]['answering_until'] = 0
             PLAYERS[player_id]['current_question_id'] = None
         return
-    
-    player = PLAYERS[player_id]
-    current_time = time.time()
     
     # Clear answering state
     player['answering_until'] = 0
