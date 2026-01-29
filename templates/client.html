@@ -537,9 +537,10 @@
             if (!picker || !nameInput) return;
 
             if (isIOSDevice()) {
-                if (nameInputWrapper) nameInputWrapper.style.display = 'none';
+                if (nameInputWrapper) nameInputWrapper.style.display = 'block';
                 picker.style.display = 'block';
-                nameInput.setAttribute('readonly', 'true');
+                nameInput.removeAttribute('readonly');
+                nameInput.removeAttribute('disabled');
             }
 
             const buttons = picker.querySelectorAll('.name-choice');
@@ -557,8 +558,8 @@
             });
 
             if (isIOSDevice()) {
-                const defaultButton = picker.querySelector('[data-name="玩家1"]');
-                if (defaultButton) defaultButton.click();
+                const defaultButton = picker.querySelector('.name-choice[data-name]');
+                if (defaultButton && !nameInput.value) defaultButton.click();
             }
         }
 
