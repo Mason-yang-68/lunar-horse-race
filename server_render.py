@@ -1167,6 +1167,19 @@ def on_request_slot_spin(data=None):
         }, room=player_id, namespace='/')
         return
 
+    # Eligibility check: only players who finished after top 3 can spin
+    if not player.get('finished') or player.get('finish_order', 0) <= 3:
+        print(f"[SLOT] Ineligible spin request from {player.get('name')} (finish_order={player.get('finish_order')})")
+        socketio.emit('slot_spin_result', {
+            'won': False,
+            'prize': 200,
+            'lucky_slots_remaining': GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0),
+            'player_id': player_id,
+            'player_name': player.get('name', 'Unknown'),
+            'result_type': 'not_eligible'
+        }, room=player_id, namespace='/')
+        return
+
     # 1. Check Availability
     lucky_slots_remaining = GAME_STATE.get('lucky_max_winners', 3) - GAME_STATE.get('lucky_winners_count', 0)
     
