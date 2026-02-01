@@ -482,6 +482,28 @@
         let isRacing = false;
         let isWaiting = false;  // Track waiting state for reconnection
         let disconnectOverlay = null;
+        const HEARTBEAT_INTERVAL_MS = 10000;
+        let heartbeatTimer = null;
+
+        function sendHeartbeatNow() {
+            if (socket.connected && (isRacing || isWaiting)) {
+                socket.emit('client_heartbeat', { state: isRacing ? 'RACING' : 'WAITING' });
+            }
+        }
+
+        function startHeartbeat() {
+            if (heartbeatTimer) return;
+            heartbeatTimer = setInterval(() => {
+                sendHeartbeatNow();
+            }, HEARTBEAT_INTERVAL_MS);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+        }
 
         // Restore state on page load (before socket connect triggers)
         const hadSavedState = loadGameState();
@@ -543,6 +565,7 @@
         // Socket disconnect handler
         socket.on('disconnect', () => {
             console.log('Socket disconnected!');
+            stopHeartbeat();
             if (isRacing || isWaiting) {
                 showDisconnectOverlay();
             }
@@ -552,6 +575,8 @@
         socket.on('connect', () => {
             console.log('Socket connected/reconnected');
             hideDisconnectOverlay();
+            startHeartbeat();
+            sendHeartbeatNow();
 
             // If we were in a game (racing), try to rejoin
             if (myName && isRacing) {
@@ -587,6 +612,7 @@
             disableInputsForGame();
             lockLoginInputs();
             clearUndoHistory();
+            sendHeartbeatNow();
 
             // IMPORTANT: Restart motion listener (iOS suspends it in background)
             startListening();
@@ -642,6 +668,7 @@
             isRacing = false;
             saveGameState();
             lockLoginInputs();
+            sendHeartbeatNow();
 
             // Show success message
             const msg = document.createElement('div');
@@ -662,6 +689,20 @@
             }
         });
 
+        // Ready check before race start
+        socket.on('ready_check', (data) => {
+            if (isWaiting) {
+                socket.emit('ready_pong', { name: myName, device_id: deviceId });
+                sendHeartbeatNow();
+            }
+        });
+
+        socket.on('ready_check_kicked', () => {
+            alert('Ready check failed. Please rejoin the next round.');
+            clearGameState();
+            location.reload();
+        });
+
         // Page visibility change (iOS background detection)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && (isRacing || isWaiting)) {
@@ -670,6 +711,7 @@
                     showDisconnectOverlay();
                     socket.connect();
                 }
+                sendHeartbeatNow();
             }
         });
 
@@ -684,6 +726,8 @@
             saveGameState();  // Persist state for page reload
             resumeClientAudio();
             lockLoginInputs();
+            startHeartbeat();
+            sendHeartbeatNow();
 
             // Show player's selected avatar in wait screen
             const avatarImg = document.getElementById('wait-avatar-img');
@@ -717,6 +761,7 @@
             isWaiting = false;  // No longer waiting
             isRacing = true;  // Mark that we're in a race for reconnection
             saveGameState();  // Persist state for page reload
+            sendHeartbeatNow();
 
             // IMPORTANT: Disable all inputs and clear undo history to prevent "Shake to Undo"
             disableInputsForGame();
