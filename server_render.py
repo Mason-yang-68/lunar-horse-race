@@ -55,7 +55,8 @@ PLAYER_LAST_ACTIVE = {
 CLEANUP_TIMEOUT = 3600  # 1 hour in seconds
 
 # Ready check / heartbeat settings
-READY_CHECK_TIMEOUT = 10  # Seconds to wait for ready pong
+# Set READY_CHECK_TIMEOUT=0 (env) to skip ready check entirely.
+READY_CHECK_TIMEOUT = int(os.getenv('READY_CHECK_TIMEOUT', '3'))  # Seconds to wait for ready pong
 HEARTBEAT_TIMEOUT = 20  # Seconds before marking player inactive
 
 def sleep_seconds(seconds: float) -> None:
@@ -765,6 +766,11 @@ def start_race_internal(data):
 def begin_ready_check(start_data):
     import time
     if GAME_STATE.get('ready_checking'):
+        return
+    if READY_CHECK_TIMEOUT <= 0:
+        # Skip ready check and start immediately
+        GAME_STATE['pending_start_data'] = None
+        start_race_internal(start_data)
         return
     GAME_STATE['ready_checking'] = True
     GAME_STATE['pending_start_data'] = start_data
