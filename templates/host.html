@@ -2302,7 +2302,7 @@
 
             // Create a table
             let html = '<table style="margin: 0 auto; font-size: 24px; border-collapse: collapse;">';
-            html += '<tr><th style="padding:10px;">名次</th><th style="padding:10px;">名字</th><th style="padding:10px;">獎金 💰</th></tr>';
+            html += '<tr><th style="padding:10px;">名次</th><th style="padding:10px;">名字</th><th style="padding:10px;">獎金 💰</th><th style="padding:10px;">答對題數</th><th style="padding:10px;">搖晃次數</th></tr>';
 
             results.forEach(p => {
                 let medalEmoji = '';
@@ -2321,10 +2321,15 @@
                     prizeDisplay = `<span style="color:gold;font-weight:bold;">$${p.prize}</span>`;
                 }
 
+                const correctCount = Number.isFinite(p.correct_count) ? p.correct_count : (p.correct_answers || 0);
+                const shakeCount = Number.isFinite(p.shake_count) ? p.shake_count : (p.shake || 0);
+
                 html += `<tr>
                     <td style="padding:10px; border-bottom:1px solid gold;">${medalEmoji} #${p.rank}</td>
                     <td style="padding:10px; border-bottom:1px solid gold;">${p.name}</td>
                     <td style="padding:10px; border-bottom:1px solid gold;">${prizeDisplay}</td>
+                    <td style="padding:10px; border-bottom:1px solid gold;">${correctCount}</td>
+                    <td style="padding:10px; border-bottom:1px solid gold;">${shakeCount}</td>
                 </tr>`;
             });
             html += '</table>';

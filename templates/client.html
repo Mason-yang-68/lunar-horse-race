@@ -289,6 +289,8 @@
             style="background: rgba(0,0,0,0.3); padding: 30px; border-radius: 20px; margin: 20px; border: 3px solid gold;">
             <h2 id="my-rank" style="font-size: 32px; color: gold;">名次: ?</h2>
             <h2 id="my-prize" style="font-size: 40px; color: #FFD700;">獎金: $?</h2>
+            <h3 id="my-correct-count" style="font-size: 24px; color: #fff;">答對題數: 0</h3>
+            <h3 id="my-shake-count" style="font-size: 24px; color: #fff;">搖晃次數: 0</h3>
         </div>
         <div class="festive-decoration">🧧 恭喜發財 🧧</div>
     </div>
@@ -796,11 +798,17 @@
 
                 document.getElementById('my-rank').innerText = medalEmoji + "名次: #" + myResult.rank;
                 document.getElementById('my-prize').innerText = "獎金: $" + myResult.prize;
+                const correctCount = Number.isFinite(myResult.correct_count) ? myResult.correct_count : 0;
+                const shakeCount = Number.isFinite(myResult.shake_count) ? myResult.shake_count : 0;
+                document.getElementById('my-correct-count').innerText = "答對題數: " + correctCount;
+                document.getElementById('my-shake-count').innerText = "搖晃次數: " + shakeCount;
 
                 // Vibrate for excitement
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
             } else {
                 document.getElementById('my-rank').innerText = "請看主螢幕";
+                document.getElementById('my-correct-count').innerText = "答對題數: -";
+                document.getElementById('my-shake-count').innerText = "搖晃次數: -";
             }
         });
 

@@ -92,6 +92,7 @@ def bot_runner():
                     if random.random() < random.uniform(0.5, 0.9):  # Random 50%-90% chance correct
                         player['progress'] = min(100, player['progress'] + 3)
                         player['quiz_cooldown_until'] = current_time + 6
+                        player['correct_count'] = player.get('correct_count', 0) + 1
                     else:
                         player['freeze_until'] = current_time + 5
                         player['quiz_cooldown_until'] = current_time + 6
@@ -108,6 +109,7 @@ def bot_runner():
                 if GAME_STATE.get('debug_mode'):
                     move_amount *= 20
                 
+                player['shake_count'] = player.get('shake_count', 0) + 1
                 player['progress'] = min(100, player['progress'] + move_amount)
                 
                 # Check finish
@@ -575,6 +577,8 @@ def on_join(data):
         'progress': 0,
         'speed': 0,
         'finished': False,
+        'correct_count': 0,
+        'shake_count': 0,
         'slot_done': False,
         'slot_broadcasted': False,
         'disconnected': False,
@@ -674,6 +678,8 @@ def on_add_bots(data):
             'progress': 0,
             'speed': 0,
             'finished': False,
+            'correct_count': 0,
+            'shake_count': 0,
             'slot_done': False,
             'slot_broadcasted': False,
             'is_bot': True,
@@ -736,6 +742,8 @@ def start_race_internal(data):
         PLAYERS[pid]['speed'] = 0
         PLAYERS[pid]['finished'] = False
         PLAYERS[pid]['finish_order'] = 0
+        PLAYERS[pid]['correct_count'] = 0
+        PLAYERS[pid]['shake_count'] = 0
         PLAYERS[pid]['slot_done'] = False # Reset slot status
         PLAYERS[pid]['slot_broadcasted'] = False
         PLAYERS[pid]['ready'] = False
@@ -1272,6 +1280,7 @@ def on_quiz_answer(data):
         # Correct: Move forward 3% instantly + 6 second cooldown
         player['progress'] = min(100, player['progress'] + 3)
         player['quiz_cooldown_until'] = current_time + 6
+        player['correct_count'] = player.get('correct_count', 0) + 1
         print(f"{player['name']} answered CORRECTLY! (+3%, cooldown 6s)")
     else:
         # Wrong: Freeze for 5 seconds + 6 second cooldown before next question
@@ -1543,6 +1552,7 @@ def on_shake(data):
     MAX_PROGRESS_PER_SHAKE = 5.0
     if move_amount > MAX_PROGRESS_PER_SHAKE:
         move_amount = MAX_PROGRESS_PER_SHAKE
+    player['shake_count'] = player.get('shake_count', 0) + 1
     PLAYERS[request.sid]['progress'] += move_amount
     
     # Debug Mode 20x Speed
@@ -1883,7 +1893,9 @@ def calculate_and_emit_results(reason=''):
                 'name': player['name'],
                 'rank': i + 1,
                 'prize': prize,
-                'avatar_id': player.get('avatar_id', 'horse1')
+                'avatar_id': player.get('avatar_id', 'horse1'),
+                'correct_count': player.get('correct_count', 0),
+                'shake_count': player.get('shake_count', 0)
             })
             
     socketio.emit('game_results', results, namespace='/')
