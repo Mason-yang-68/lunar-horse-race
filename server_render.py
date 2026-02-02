@@ -1517,6 +1517,7 @@ def on_shake(data):
     import time
     current_time = time.time()
     player['last_seen'] = current_time
+    player['shake_count'] = player.get('shake_count', 0) + 1
     
     # Rate limiting: max 20 shakes per second (50ms interval)
     last_shake = RATE_LIMIT.get(request.sid, 0)
@@ -1552,7 +1553,6 @@ def on_shake(data):
     MAX_PROGRESS_PER_SHAKE = 5.0
     if move_amount > MAX_PROGRESS_PER_SHAKE:
         move_amount = MAX_PROGRESS_PER_SHAKE
-    player['shake_count'] = player.get('shake_count', 0) + 1
     PLAYERS[request.sid]['progress'] += move_amount
     
     # Debug Mode 20x Speed
